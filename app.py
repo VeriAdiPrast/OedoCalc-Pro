@@ -12,22 +12,23 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Fungsi Pembuat Template Excel Otomatis (In-Memory)
-def buat_template_excel():
+# 2. Pembuat Template Excel Kosong (In-Memory)
+def buat_template_excel_kosong():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         waktu_menit = [0, 0, 0, 1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 1440]
         waktu_detik = [6, 15, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         
+        # Kolom pembacaan beban dibiarkan kosong (None / NaN)
         data = {
             'Waktu (Menit)': waktu_menit,
             'Waktu (Detik)': waktu_detik,
-            'p=0.25 kg/cm2': [0.012, 0.018, 0.025, 0.034, 0.045, 0.058, 0.072, 0.086, 0.098, 0.108, 0.115, 0.120, 0.124, 0.128],
-            'p=0.50 kg/cm2': [0.045, 0.062, 0.080, 0.102, 0.130, 0.162, 0.198, 0.235, 0.268, 0.295, 0.315, 0.330, 0.340, 0.350],
-            'p=1.00 kg/cm2': [0.110, 0.142, 0.178, 0.215, 0.260, 0.312, 0.370, 0.432, 0.485, 0.530, 0.562, 0.585, 0.600, 0.615],
-            'p=2.00 kg/cm2': [0.240, 0.295, 0.355, 0.420, 0.495, 0.580, 0.672, 0.765, 0.840, 0.905, 0.955, 0.990, 1.015, 1.035],
-            'p=4.00 kg/cm2': [0.480, 0.560, 0.650, 0.745, 0.855, 0.980, 1.115, 1.240, 1.345, 1.430, 1.500, 1.550, 1.585, 1.615],
-            'p=8.00 kg/cm2': [0.890, 1.010, 1.150, 1.290, 1.450, 1.620, 1.800, 1.960, 2.080, 2.180, 2.250, 2.300, 2.335, 2.365]
+            'p=0.25 kg/cm2': [None] * len(waktu_menit),
+            'p=0.50 kg/cm2': [None] * len(waktu_menit),
+            'p=1.00 kg/cm2': [None] * len(waktu_menit),
+            'p=2.00 kg/cm2': [None] * len(waktu_menit),
+            'p=4.00 kg/cm2': [None] * len(waktu_menit),
+            'p=8.00 kg/cm2': [None] * len(waktu_menit)
         }
         df_template = pd.DataFrame(data)
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
@@ -102,7 +103,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     ax2.invert_yaxis()
     plt.tight_layout()
 
-    # Klasifikasi & Rekomendasi Technical
+    # Klasifikasi & Rekomendasi
     if Cc < 0.2:
         kemampatan = "RENDAH (Low Compressibility) - Tanah Padat"
         rekomendasi = "Pondasi Dangkal (Footplat / Batu Kali)."
@@ -156,9 +157,9 @@ with tab_kalkulator:
     col_dl, col_space = st.columns([1, 2])
     with col_dl:
         st.download_button(
-            label="📥 Unduh Template Format Excel (.xlsx)",
-            data=buat_template_excel(),
-            file_name="Template_OedoCalc_Pro.xlsx",
+            label="📥 Unduh Template Format Excel Kosong (.xlsx)",
+            data=buat_template_excel_kosong(),
+            file_name="Template_Kosong_OedoCalc_Pro.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
@@ -210,7 +211,7 @@ with tab_panduan:
 
     ---
 
-    ### 2. Formulas Penurunan & Konversi Tegangan
+    ### 2. Formulasi Penurunan & Konversi Tegangan
     * **Konversi Tegangan:**
       $$p_{kPa} = p_{kg/cm^2} \times 98.0665$$
     * **Perubahan Angka Pori ($\Delta e$):**
@@ -220,22 +221,22 @@ with tab_panduan:
 
     ---
 
-    ### 3. Template Standar Tabel Data Excel
-    Berikut adalah struktur tabel yang harus digunakan pada file Excel (`.xlsx`) atau CSV sebelum diunggah ke aplikasi:
+    ### 3. Template Kosong Standar Tabel Data Excel
+    Isikan data pembacaan arloji dial (mm) laboratorium pada kolom beban masing-masing seperti format kosong di bawah ini:
     """)
     
-    # Template Data Sample Table untuk Display di Panduan
-    template_display = pd.DataFrame({
+    # Template Tabel Kosong untuk Display
+    template_kosong_display = pd.DataFrame({
         'Waktu (Menit)': [0, 0, 0, 1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 1440],
         'Waktu (Detik)': [6, 15, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        'p=0.25 kg/cm2': [0.012, 0.018, 0.025, 0.034, 0.045, 0.058, 0.072, 0.086, 0.098, 0.108, 0.115, 0.120, 0.124, 0.128],
-        'p=0.50 kg/cm2': [0.045, 0.062, 0.080, 0.102, 0.130, 0.162, 0.198, 0.235, 0.268, 0.295, 0.315, 0.330, 0.340, 0.350],
-        'p=1.00 kg/cm2': [0.110, 0.142, 0.178, 0.215, 0.260, 0.312, 0.370, 0.432, 0.485, 0.530, 0.562, 0.585, 0.600, 0.615],
-        'p=2.00 kg/cm2': [0.240, 0.295, 0.355, 0.420, 0.495, 0.580, 0.672, 0.765, 0.840, 0.905, 0.955, 0.990, 1.015, 1.035],
-        'p=4.00 kg/cm2': [0.480, 0.560, 0.650, 0.745, 0.855, 0.980, 1.115, 1.240, 1.345, 1.430, 1.500, 1.550, 1.585, 1.615],
-        'p=8.00 kg/cm2': [0.890, 1.010, 1.150, 1.290, 1.450, 1.620, 1.800, 1.960, 2.080, 2.180, 2.250, 2.300, 2.335, 2.365]
+        'p=0.25 kg/cm2': [""] * 14,
+        'p=0.50 kg/cm2': [""] * 14,
+        'p=1.00 kg/cm2': [""] * 14,
+        'p=2.00 kg/cm2': [""] * 14,
+        'p=4.00 kg/cm2': [""] * 14,
+        'p=8.00 kg/cm2': [""] * 14
     })
     
-    st.dataframe(template_display, use_container_width=True)
+    st.dataframe(template_kosong_display, use_container_width=True)
     
-    st.info("💡 **Catatan:** Kolom 1 adalah Waktu dalam Menit, Kolom 2 adalah Waktu sisa dalam Detik, dan Kolom 3 dst. adalah Pembacaan Dial Penurunan (mm) untuk setiap tahap beban.")
+    st.info("💡 **Catatan:** Kolom 1 adalah Waktu dalam Menit, Kolom 2 adalah Waktu sisa dalam Detik, dan Kolom 3 dst. adalah Pembacaan Dial Penurunan (mm) yang siap diisi sesuai hasil uji laboratorium Anda.")
