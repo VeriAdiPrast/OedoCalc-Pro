@@ -1,5 +1,8 @@
 streamlit
+streamlit
 pandas
 numpy
 matplotlib
 openpyxl
+folium
+streamlit-folium
