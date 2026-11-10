@@ -298,38 +298,35 @@ with tab_kalkulator:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# --- TAB 2: PETA LOKASI SAMPEL TANAH INTERAKTIF ---
+# --- TAB 2: PETA LOKASI SAMPEL TANAH (STABIL 100%) ---
 with tab_peta:
     st.header("🗺️ Peta Pemetaan Lokasi Pengambilan Sampel Tanah (Borehole)")
-    st.write("Anda dapat mengubah lokasi sampel dengan **memasukkan koordinat manual** atau **mengklik langsung pada peta**.")
-
-    if 'latitude' not in st.session_state:
-        st.session_state.latitude = -6.208800
-    if 'longitude' not in st.session_state:
-        st.session_state.longitude = 106.845600
+    st.write("Ubah nilai **Latitude** dan **Longitude** di sebelah kiri untuk menggeser posisi titik pemboran (*borehole*) di atas peta.")
 
     col_map_in, col_map_view = st.columns([1, 2])
 
     with col_map_in:
-        st.subheader("📍 Input / Ubah Lokasi Sampel")
-        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A")
+        st.subheader("📍 Input Koordinat Sampel")
+        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A", key="peta_nama")
         
-        lat_input = st.number_input("Latitude (Lintang)", value=float(st.session_state.latitude), format="%.6f", key="input_lat")
-        lon_input = st.number_input("Longitude (Bujur)", value=float(st.session_state.longitude), format="%.6f", key="input_lon")
+        lat_val = st.number_input("Latitude (Lintang)", value=-6.208800, format="%.6f", key="peta_lat")
+        lon_val = st.number_input("Longitude (Bujur)", value=106.845600, format="%.6f", key="peta_lon")
+        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5, key="peta_depth")
         
-        st.session_state.latitude = lat_input
-        st.session_state.longitude = lon_input
-
-        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5)
-        
-        gmaps_url = f"https://www.google.com/maps?q={st.session_state.latitude},{st.session_state.longitude}"
+        # Link langsung ke Google Maps
+        gmaps_url = f"https://www.google.com/maps?q={lat_val},{lon_val}"
         st.markdown(f"🔗 **[Buka Titik Ini di Google Maps Direct]({gmaps_url})**")
 
     with col_map_view:
-        st.subheader("🌍 Klik pada Peta untuk Mengubah Lokasi")
-        
-        m = folium.Map(
-            location=[st.session_state.latitude, st.session_state.longitude], 
-            zoom_start=13,
-            tiles="OpenStreetMap"
-        )
+        st.subheader("🌍 Visualisasi Peta Titik Sampel")
+        # Membuat Dataframe Lokasi untuk Peta Bawaan Streamlit
+        df_lokasi = pd.DataFrame({
+            'lat': [lat_val],
+            'lon': [lon_val]
+        })
+        # Peta bawaan Streamlit (pasti murni ter-render tanpa iframe block)
+        st.map(df_lokasi, zoom=13)
+
+    st.divider()
+    st.subheader("📋 Ringkasan Geolocation Terkini")
+    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{lat_val:.6f}`, Lon `{lon_val:.6f}`")
