@@ -228,7 +228,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
 
     return laporan_teknis, pembahasan_text, kesimpulan_text, rab_text, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan, total_bawah, total_atas
 
-# 5. PENDEKLARASIAN TAB NAVIGASI UTAMA (Dibuat dulu di sini!)
+# 5. PENDEKLARASIAN TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
 
 # --- TAB 1: KALKULATOR GEOTEKNIK ---
@@ -298,35 +298,78 @@ with tab_kalkulator:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# --- TAB 2: PETA LOKASI SAMPEL TANAH (STABIL 100%) ---
+# --- TAB 2: PETA LOKASI SAMPEL TANAH INTERAKTIF TERHUBUNG ---
 with tab_peta:
     st.header("🗺️ Peta Pemetaan Lokasi Pengambilan Sampel Tanah (Borehole)")
-    st.write("Ubah nilai **Latitude** dan **Longitude** di sebelah kiri untuk menggeser posisi titik pemboran (*borehole*) di atas peta.")
+    st.write("Lokasi dapat dipindahkan dengan **mengklik titik baru di atas peta** atau **mengubah angka koordinat** di sebelah kiri.")
+
+    # 1. Inisialisasi Session State Koordinat
+    if 'curr_lat' not in st.session_state:
+        st.session_state.curr_lat = -6.208800
+    if 'curr_lon' not in st.session_state:
+        st.session_state.curr_lon = 106.845600
 
     col_map_in, col_map_view = st.columns([1, 2])
 
     with col_map_in:
-        st.subheader("📍 Input Koordinat Sampel")
+        st.subheader("📍 Input / Ubah Lokasi Sampel")
         nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A", key="peta_nama")
         
-        lat_val = st.number_input("Latitude (Lintang)", value=-6.208800, format="%.6f", key="peta_lat")
-        lon_val = st.number_input("Longitude (Bujur)", value=106.845600, format="%.6f", key="peta_lon")
+        # 2. Input angka terhubung dengan st.session_state
+        lat_input = st.number_input(
+            "Latitude (Lintang)", 
+            value=float(st.session_state.curr_lat), 
+            format="%.6f", 
+            key="peta_lat_input"
+        )
+        lon_input = st.number_input(
+            "Longitude (Bujur)", 
+            value=float(st.session_state.curr_lon), 
+            format="%.6f", 
+            key="peta_lon_input"
+        )
+        
+        # Sinkronkan jika user mengetik angka manual
+        st.session_state.curr_lat = lat_input
+        st.session_state.curr_lon = lon_input
+
         kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5, key="peta_depth")
         
-        # Link langsung ke Google Maps
-        gmaps_url = f"https://www.google.com/maps?q={lat_val},{lon_val}"
+        gmaps_url = f"https://www.google.com/maps?q={st.session_state.curr_lat},{st.session_state.curr_lon}"
         st.markdown(f"🔗 **[Buka Titik Ini di Google Maps Direct]({gmaps_url})**")
 
     with col_map_view:
-        st.subheader("🌍 Visualisasi Peta Titik Sampel")
-        # Membuat Dataframe Lokasi untuk Peta Bawaan Streamlit
-        df_lokasi = pd.DataFrame({
-            'lat': [lat_val],
-            'lon': [lon_val]
-        })
-        # Peta bawaan Streamlit (pasti murni ter-render tanpa iframe block)
-        st.map(df_lokasi, zoom=13)
+        st.subheader("🌍 Klik pada Peta untuk Menggeser Posisi")
+        
+        # 3. Membuat peta Folium berdasarkan koordinat aktif
+        m = folium.Map(
+            location=[st.session_state.curr_lat, st.session_state.curr_lon], 
+            zoom_start=13,
+            tiles="OpenStreetMap"
+        )
+        
+        # Marker sampel tanah
+        folium.Marker(
+            [st.session_state.curr_lat, st.session_state.curr_lon],
+            popup=f"<b>{nama_proyek}</b><br>Kedalaman: {kedalaman} m",
+            tooltip=nama_proyek,
+            icon=folium.Icon(color="red", icon="info-sign")
+        ).add_to(m)
+
+        # Render peta interaktif
+        map_data = st_folium(m, height=400, width=700, key="folium_interactive_map")
+
+        # 4. Pembacaan Klik Pengguna pada Peta untuk Update Otomatis
+        if map_data and map_data.get("last_clicked"):
+            click_lat = map_data["last_clicked"]["lat"]
+            click_lng = map_data["last_clicked"]["lng"]
+            
+            # Jika koordinat klik berbeda dari koordinat saat ini, update dan reload halaman
+            if abs(click_lat - st.session_state.curr_lat) > 0.000001 or abs(click_lng - st.session_state.curr_lon) > 0.000001:
+                st.session_state.curr_lat = click_lat
+                st.session_state.curr_lon = click_lng
+                st.rerun()
 
     st.divider()
     st.subheader("📋 Ringkasan Geolocation Terkini")
-    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{lat_val:.6f}`, Lon `{lon_val:.6f}`")
+    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.curr_lat:.6f}`, Lon `{st.session_state.curr_lon:.6f}`")
