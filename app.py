@@ -7,7 +7,7 @@ import math
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(
-    page_title="OedoCalc Pro & Buku Panduan",
+    page_title="OedoCalc Pro & Peta Lokasi Sampel",
     page_icon="🧪",
     layout="wide"
 )
@@ -19,7 +19,6 @@ def buat_template_excel_kosong():
         waktu_menit = [0, 0, 0, 1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 1440]
         waktu_detik = [6, 15, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         
-        # Kolom pembacaan beban dibiarkan kosong (None / NaN)
         data = {
             'Waktu (Menit)': waktu_menit,
             'Waktu (Detik)': waktu_detik,
@@ -34,7 +33,7 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 3. Fungsi Logika Analisis Oedometer
+# 3. Logika Analisis Oedometer
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -119,7 +118,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     else:
         kemampatan = "TINGGI (High Compressibility) - Tanah Sangat Lunak"
         rekomendasi = "Perbaikan Tanah Masif (PVD + Preloading)."
-        pekerjaan = "- Geotextile & Sand Blanket\n- Penetrasi PVD dengan Rig\n- Preloading & Monitoring"
+        pekerjaan = "- Geotextile & Sand Blanket\n- Penetrasi PVD megunakan Rig\n- Preloading & Monitoring"
         total_bawah = (luas_bangunan * 2600000) + 45000000
         total_atas = (luas_bangunan * 2900000) + 45000000
 
@@ -148,7 +147,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     return laporan_teknis, rab_text, fig_elogp, fig_time, df_export
 
 # 4. TAB NAVIGASI UTAMA
-tab_kalkulator, tab_panduan = st.tabs(["🚀 Aplikasi Kalkulator", "📖 Buku Panduan Penggunaan"])
+tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
 
 # --- TAB 1: KALKULATOR GEOTEKNIK ---
 with tab_kalkulator:
@@ -194,49 +193,33 @@ with tab_kalkulator:
             csv_bytes = df_export.to_csv(index=False).encode('utf-8')
             st.download_button("📊 Unduh Ringkasan Hasil (.csv)", data=csv_bytes, file_name="ringkasan_oedometer.csv", mime="text/csv")
 
-# --- TAB 2: BUKU PANDUAN PENGGUNAAN ---
-with tab_panduan:
-    st.header("📖 Buku Panduan Penggunaan OedoCalc Pro")
-    
-    st.markdown("""
-    ### 1. Pendahuluan & Parameter Masukan
-    Aplikasi **OedoCalc Pro** dirancang untuk mengolah data mentah pembacaan arloji dial konsolidasi oedometer (*ASTM D2435 / SNI 2812:2011*) secara otomatis.
-    
-    **Parameter Input Utama:**
-    * **Diameter Cincin ($D$):** Ukuran sampel tanah laboratorium (Standar: 63.5 mm).
-    * **Tinggi Sampel ($H_0$):** Tinggi awal benda uji (Standar: 20.0 mm).
-    * **Angka Pori Awal ($e_0$):** Rasio volume pori terhadap volume padatan tanah awal.
-    * **Koefisien Konsolidasi ($C_v$):** Kecepatan penurunan tanah ($m^2/tahun$).
-    * **Drainase:** Pilihan 1 arah (lapisan kedap di bawah) atau 2 arah (porous stone di atas & bawah).
+# --- TAB 2: PETA LOKASI SAMPEL TANAH ---
+with tab_peta:
+    st.header("🗺️ Peta Pemetaan Lokasi Pengambilan Sampel Tanah (Borehole)")
+    st.write("Gunakan fitur ini untuk melacak dan memetakan koordinat titik bor tempat sampel tanah diambil di lapangan.")
 
-    ---
+    col_map_in, col_map_view = st.columns([1, 2])
 
-    ### 2. Formulasi Penurunan & Konversi Tegangan
-    * **Konversi Tegangan:**
-      $$p_{kPa} = p_{kg/cm^2} \times 98.0665$$
-    * **Perubahan Angka Pori ($\Delta e$):**
-      $$e = e_0 - \left( \frac{\Delta H}{H_0} \times (1 + e_0) \right)$$
-    * **Waktu Penurunan $t_{90}$ Lapangan:**
-      $$t_{90} = \frac{T_v \cdot H_{dr}^2}{C_v} \quad (T_v = 0.848)$$
+    with col_map_in:
+        st.subheader("📍 Data Koordinat Sampel")
+        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A")
+        lat = st.number_input("Latitude (Lintang)", value=-6.2088, format="%.6f", help="Contoh: -6.208800 (Jakarta)")
+        lon = st.number_input("Longitude (Bujur)", value=106.8456, format="%.6f", help="Contoh: 106.845600 (Jakarta)")
+        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5)
+        
+        # URL Integrasi Google Maps
+        gmaps_url = f"https://www.google.com/maps?q={lat},{lon}"
+        st.markdown(f"🔗 **[Buka di Google Maps Direct]({gmaps_url})**")
 
-    ---
+    with col_map_view:
+        st.subheader("🌍 Visualisasi Peta Poin Lokasi")
+        # Membuat DataFrame Peta untuk Streamlit Map
+        df_lokasi = pd.DataFrame({
+            'lat': [lat],
+            'lon': [lon]
+        })
+        st.map(df_lokasi, zoom=14)
 
-    ### 3. Template Kosong Standar Tabel Data Excel
-    Isikan data pembacaan arloji dial (mm) laboratorium pada kolom beban masing-masing seperti format kosong di bawah ini:
-    """)
-    
-    # Template Tabel Kosong untuk Display
-    template_kosong_display = pd.DataFrame({
-        'Waktu (Menit)': [0, 0, 0, 1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 1440],
-        'Waktu (Detik)': [6, 15, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        'p=0.25 kg/cm2': [""] * 14,
-        'p=0.50 kg/cm2': [""] * 14,
-        'p=1.00 kg/cm2': [""] * 14,
-        'p=2.00 kg/cm2': [""] * 14,
-        'p=4.00 kg/cm2': [""] * 14,
-        'p=8.00 kg/cm2': [""] * 14
-    })
-    
-    st.dataframe(template_kosong_display, use_container_width=True)
-    
-    st.info("💡 **Catatan:** Kolom 1 adalah Waktu dalam Menit, Kolom 2 adalah Waktu sisa dalam Detik, dan Kolom 3 dst. adalah Pembacaan Dial Penurunan (mm) yang siap diisi sesuai hasil uji laboratorium Anda.")
+    st.divider()
+    st.subheader("📋 Ringkasan Geolocation")
+    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat:** Lat `{lat}`, Lon `{lon}`")
