@@ -7,12 +7,12 @@ import math
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(
-    page_title="OedoCalc Pro & Peta Lokasi Sampel",
+    page_title="OedoCalc Pro & Geolocation",
     page_icon="🧪",
     layout="wide"
 )
 
-# 2. Pembuat Template Excel Kosong (In-Memory)
+# 2. Fungsi Pembuat Template Excel Kosong
 def buat_template_excel_kosong():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -33,7 +33,35 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 3. Logika Analisis Oedometer
+# 3. Fungsi Pembuat Single File Excel Gabungan Output
+def buat_excel_output_gabungan(df_export, laporan_teknis, rab_text, Cc, t90_tahun, t90_bulan, total_bawah, total_atas):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Sheet 1: Ringkasan Hasil Uji & Angka Pori
+        df_export.to_excel(writer, index=False, sheet_name='Ringkasan_Konsolidasi')
+        
+        # Sheet 2: Laporan Teknis & Parameter
+        df_parameter = pd.DataFrame({
+            'Parameter / Indikator': [
+                'Indeks Kompresi (Cc)',
+                'Waktu Penurunan t90 (Tahun)',
+                'Waktu Penurunan t90 (Bulan)',
+                'Estimasi RAB Batas Bawah (Rp)',
+                'Estimasi RAB Batas Atas (Rp)'
+            ],
+            'Nilai Output': [
+                round(Cc, 4),
+                round(t90_tahun, 2),
+                round(t90_bulan, 0),
+                total_bawah,
+                total_atas
+            ]
+        })
+        df_parameter.to_excel(writer, index=False, sheet_name='Laporan_Teknis_&_RAB')
+        
+    return output.getvalue()
+
+# 4. Logika Analisis Oedometer
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -118,7 +146,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     else:
         kemampatan = "TINGGI (High Compressibility) - Tanah Sangat Lunak"
         rekomendasi = "Perbaikan Tanah Masif (PVD + Preloading)."
-        pekerjaan = "- Geotextile & Sand Blanket\n- Penetrasi PVD megunakan Rig\n- Preloading & Monitoring"
+        pekerjaan = "- Geotextile & Sand Blanket\n- Penetrasi PVD dengan Rig\n- Preloading & Monitoring"
         total_bawah = (luas_bangunan * 2600000) + 45000000
         total_atas = (luas_bangunan * 2900000) + 45000000
 
@@ -144,9 +172,9 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         'Angka Pori (e)': e_list
     })
 
-    return laporan_teknis, rab_text, fig_elogp, fig_time, df_export
+    return laporan_teknis, rab_text, fig_elogp, fig_time, df_export, Cc, t90_tahun, t90_bulan, total_bawah, total_atas
 
-# 4. TAB NAVIGASI UTAMA
+# 5. TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
 
 # --- TAB 1: KALKULATOR GEOTEKNIK ---
@@ -178,7 +206,9 @@ with tab_kalkulator:
     with col2:
         if uploaded_file and btn:
             df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-            laporan, rab, fig_elogp, fig_time, df_export = proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan)
+            laporan, rab, fig_elogp, fig_time, df_export, Cc, t90_t, t90_b, rb_b, rb_a = proses_oedometer(
+                df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan
+            )
             
             subtab1, subtab2, subtab3, subtab4 = st.tabs(["📄 Laporan Teknis", "💰 Estimasi RAB", "📈 Kurva e - log p", "📉 Grafik Penurunan"])
             with subtab1:
@@ -190,8 +220,14 @@ with tab_kalkulator:
             with subtab4:
                 st.pyplot(fig_time)
                 
-            csv_bytes = df_export.to_csv(index=False).encode('utf-8')
-            st.download_button("📊 Unduh Ringkasan Hasil (.csv)", data=csv_bytes, file_name="ringkasan_oedometer.csv", mime="text/csv")
+            # Tombol unduh single file gabungan (.xlsx)
+            excel_gabungan_bytes = buat_excel_output_gabungan(df_export, laporan, rab, Cc, t90_t, t90_b, rb_b, rb_a)
+            st.download_button(
+                label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
+                data=excel_gabungan_bytes,
+                file_name="Laporan_Lengkap_OedoCalc_Pro.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 # --- TAB 2: PETA LOKASI SAMPEL TANAH ---
 with tab_peta:
@@ -203,21 +239,16 @@ with tab_peta:
     with col_map_in:
         st.subheader("📍 Data Koordinat Sampel")
         nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A")
-        lat = st.number_input("Latitude (Lintang)", value=-6.2088, format="%.6f", help="Contoh: -6.208800 (Jakarta)")
-        lon = st.number_input("Longitude (Bujur)", value=106.8456, format="%.6f", help="Contoh: 106.845600 (Jakarta)")
+        lat = st.number_input("Latitude (Lintang)", value=-6.2088, format="%.6f")
+        lon = st.number_input("Longitude (Bujur)", value=106.8456, format="%.6f")
         kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5)
         
-        # URL Integrasi Google Maps
         gmaps_url = f"https://www.google.com/maps?q={lat},{lon}"
         st.markdown(f"🔗 **[Buka di Google Maps Direct]({gmaps_url})**")
 
     with col_map_view:
         st.subheader("🌍 Visualisasi Peta Poin Lokasi")
-        # Membuat DataFrame Peta untuk Streamlit Map
-        df_lokasi = pd.DataFrame({
-            'lat': [lat],
-            'lon': [lon]
-        })
+        df_lokasi = pd.DataFrame({'lat': [lat], 'lon': [lon]})
         st.map(df_lokasi, zoom=14)
 
     st.divider()
