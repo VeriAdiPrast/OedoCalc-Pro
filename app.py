@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import io
 import math
+import base64
 import folium
 from streamlit_folium import st_folium
 
@@ -35,7 +36,77 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 3. Pembuat Single File Excel Gabungan Output
+# 3. Konversi Matplotlib Figure ke Base64 (Untuk PDF/HTML)
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+# 4. Fungsi Pembuat Dokumen Rekap Laporan HTML/PDF Siap Cetak
+def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_text, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan):
+    img_elogp = fig_to_base64(fig_elogp)
+    img_time = fig_to_base64(fig_time)
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Laporan Hasil Uji Konsolidasi Oedometer</title>
+        <style>
+            body {{ font-family: 'Arial', sans-serif; color: #0f172a; padding: 25px; line-height: 1.5; }}
+            h1 {{ color: #1e3a8a; text-align: center; font-size: 18pt; margin-bottom: 5px; }}
+            .subtitle {{ text-align: center; font-size: 10pt; color: #475569; margin-bottom: 20px; }}
+            h2 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; font-size: 12pt; margin-top: 20px; padding-bottom: 4px; }}
+            table {{ width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 10px; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 6px; text-align: center; }}
+            th {{ background-color: #f1f5f9; font-weight: bold; }}
+            .img-container {{ display: flex; gap: 15px; margin-top: 15px; }}
+            .img-box {{ flex: 1; text-align: center; font-size: 9pt; font-weight: bold; }}
+            .img-box img {{ width: 100%; height: auto; border: 1px solid #cbd5e1; margin-top: 5px; }}
+            .box-text {{ background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; font-size: 10pt; white-space: pre-line; }}
+        </style>
+    </head>
+    <body>
+        <h1>LAPORAN HASIL UJI KONSOLIDASI OEDOMETER</h1>
+        <div class="subtitle">OedoCalc Pro Engine — Standard ASTM D2435 / SNI 2812:2011</div>
+        
+        <h2>1. Informasi Proyek & Geolocation</h2>
+        <table>
+            <tr><th style="text-align:left;">Nama Proyek / Titik BH</th><td>{nama_proyek}</td><th style="text-align:left;">Kedalaman Sampel</th><td>{kedalaman} m</td></tr>
+            <tr><th style="text-align:left;">Koordinat Sampel</th><td>Lat: {lat:.6f}, Lon: {lon:.6f}</td><th style="text-align:left;">Tebal Lapisan Lempung</th><td>{tebal_lempung} m</td></tr>
+        </table>
+
+        <h2>2. Kurva Konsolidasi & Grafik Penurunan</h2>
+        <div class="img-container">
+            <div class="img-box">
+                <div>Kurva e - log p (Konsolidasi Utama)</div>
+                <img src="data:image/png;base64,{img_elogp}" />
+            </div>
+            <div class="img-box">
+                <div>Grafik Penurunan vs √Waktu</div>
+                <img src="data:image/png;base64,{img_time}" />
+            </div>
+        </div>
+
+        <h2>3. Pembahasan & Kesimpulan Geoteknik</h2>
+        <div class="box-text">
+            <strong>{pembahasan_text}</strong>
+            <br><br>
+            <strong>{kesimpulan_text}</strong>
+        </div>
+
+        <h2>4. Estimasi Biaya RAB & Rekomendasi</h2>
+        <div class="box-text">
+            <strong>{rab_text}</strong>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content.encode('utf-8')
+
+# 5. Pembuat Single File Excel Gabungan Output
 def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembahasan_text, kesimpulan_text, Cc, t90_tahun, t90_bulan, total_bawah, total_atas):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -66,7 +137,7 @@ def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembaha
         
     return output.getvalue()
 
-# 4. Logika Analisis Oedometer
+# 6. Logika Analisis Oedometer
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -228,7 +299,13 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
 
     return laporan_teknis, pembahasan_text, kesimpulan_text, rab_text, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan, total_bawah, total_atas
 
-# 5. PENDEKLARASIAN TAB NAVIGASI UTAMA (Dibuat dulu di sini!)
+# 7. Inisialisasi Session State Koordinat Global
+if 'curr_lat' not in st.session_state:
+    st.session_state.curr_lat = -6.208800
+if 'curr_lon' not in st.session_state:
+    st.session_state.curr_lon = 106.845600
+
+# 8. PENDEKLARASIAN TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
 
 # --- TAB 1: KALKULATOR GEOTEKNIK ---
@@ -290,139 +367,90 @@ with tab_kalkulator:
             with subtab6:
                 st.pyplot(fig_time)
                 
-            excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, rb_b, rb_a)
-            st.download_button(
-                label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
-                data=excel_gabungan_bytes,
-                file_name="Laporan_Lengkap_OedoCalc_Pro.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            col_btn1, col_btn2 = st.columns(2)
+            
+            with col_btn1:
+                excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, rb_b, rb_a)
+                st.download_button(
+                    label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
+                    data=excel_gabungan_bytes,
+                    file_name="Laporan_Lengkap_OedoCalc_Pro.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            with col_btn2:
+                # Pembuatan html_bytes dimasukkan ke dalam blok 'btn' agar variabel dipastikan terdefinisi
+                html_bytes = buat_laporan_html_lengkap(
+                    df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab, 
+                    "BH-01 Proyek Gedung", st.session_state.curr_lat, st.session_state.curr_lon, 
+                    4.5, tebal_lempung, cv, Cc, t90_t, t90_b
+                )
+                st.download_button(
+                    label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
+                    data=html_bytes,
+                    file_name="Laporan_Rekap_OedoCalc_Pro.html",
+                    mime="text/html"
+                )
 
 # --- TAB 2: PETA LOKASI SAMPEL TANAH INTERAKTIF ---
 with tab_peta:
     st.header("🗺️ Peta Pemetaan Lokasi Pengambilan Sampel Tanah (Borehole)")
-    st.write("Anda dapat mengubah lokasi sampel dengan **memasukkan koordinat manual** atau **mengklik langsung pada peta**.")
-
-    if 'latitude' not in st.session_state:
-        st.session_state.latitude = -6.208800
-    if 'longitude' not in st.session_state:
-        st.session_state.longitude = 106.845600
+    st.write("Lokasi dapat dipindahkan dengan **mengklik titik baru di atas peta** atau **mengubah angka koordinat** di sebelah kiri.")
 
     col_map_in, col_map_view = st.columns([1, 2])
 
     with col_map_in:
         st.subheader("📍 Input / Ubah Lokasi Sampel")
-        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A")
+        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A", key="peta_nama")
         
-        lat_input = st.number_input("Latitude (Lintang)", value=float(st.session_state.latitude), format="%.6f", key="input_lat")
-        lon_input = st.number_input("Longitude (Bujur)", value=float(st.session_state.longitude), format="%.6f", key="input_lon")
+        lat_input = st.number_input(
+            "Latitude (Lintang)", 
+            value=float(st.session_state.curr_lat), 
+            format="%.6f", 
+            key="peta_lat_input"
+        )
+        lon_input = st.number_input(
+            "Longitude (Bujur)", 
+            value=float(st.session_state.curr_lon), 
+            format="%.6f", 
+            key="peta_lon_input"
+        )
         
-        st.session_state.latitude = lat_input
-        st.session_state.longitude = lon_input
+        st.session_state.curr_lat = lat_input
+        st.session_state.curr_lon = lon_input
 
-        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5)
+        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5, key="peta_depth")
         
-        gmaps_url = f"https://www.google.com/maps?q={st.session_state.latitude},{st.session_state.longitude}"
+        gmaps_url = f"https://www.google.com/maps?q={st.session_state.curr_lat},{st.session_state.curr_lon}"
         st.markdown(f"🔗 **[Buka Titik Ini di Google Maps Direct]({gmaps_url})**")
 
     with col_map_view:
-        st.subheader("🌍 Klik pada Peta untuk Mengubah Lokasi")
+        st.subheader("🌍 Klik pada Peta untuk Menggeser Posisi")
         
         m = folium.Map(
-            location=[st.session_state.latitude, st.session_state.longitude], 
+            location=[st.session_state.curr_lat, st.session_state.curr_lon], 
             zoom_start=13,
             tiles="OpenStreetMap"
         )
         
         folium.Marker(
-            [st.session_state.latitude, st.session_state.longitude],
+            [st.session_state.curr_lat, st.session_state.curr_lon],
             popup=f"<b>{nama_proyek}</b><br>Kedalaman: {kedalaman} m",
             tooltip=nama_proyek,
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(m)
 
-        map_data = st_folium(m, height=400, width=700)
+        map_data = st_folium(m, height=400, width=700, key="folium_interactive_map")
 
         if map_data and map_data.get("last_clicked"):
-            new_lat = map_data["last_clicked"]["lat"]
-            new_lng = map_data["last_clicked"]["lng"]
+            click_lat = map_data["last_clicked"]["lat"]
+            click_lng = map_data["last_clicked"]["lng"]
             
-            if new_lat != st.session_state.latitude or new_lng != st.session_state.longitude:
-                st.session_state.latitude = new_lat
-                st.session_state.longitude = new_lng
+            if abs(click_lat - st.session_state.curr_lat) > 0.000001 or abs(click_lng - st.session_state.curr_lon) > 0.000001:
+                st.session_state.curr_lat = click_lat
+                st.session_state.curr_lon = click_lng
                 st.rerun()
 
     st.divider()
     st.subheader("📋 Ringkasan Geolocation Terkini")
-    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.latitude:.6f}`, Lon `{st.session_state.longitude:.6f}`")
-import base64
-
-# Fungsi untuk mengonversi grafik Matplotlib menjadi string Base64 gambar
-def fig_to_base64(fig):
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
-
-# Fungsi pembuat HTML Laporan Lengkap Siap Cetak PDF
-def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_text, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan):
-    img_elogp = fig_to_base64(fig_elogp)
-    img_time = fig_to_base64(fig_time)
-    
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: 'Georgia', serif; color: #0f172a; padding: 20px; }}
-            h1 {{ color: #1e3a8a; text-align: center; font-size: 18pt; }}
-            h2 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; font-size: 12pt; margin-top: 15px; }}
-            table {{ width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; }}
-            th, td {{ border: 1px solid #cbd5e1; padding: 6px; text-align: center; }}
-            th {{ background-color: #f1f5f9; }}
-            .img-container {{ display: flex; gap: 10px; margin-top: 10px; }}
-            .img-box {{ flex: 1; text-align: center; }}
-            .img-box img {{ width: 100%; height: auto; border: 1px solid #cbd5e1; }}
-        </style>
-    </head>
-    <body>
-        <h1>LAPORAN HASIL UJI KONSOLIDASI OEDOMETER</h1>
-        <p style="text-align: center; font-size: 10pt;"><strong>OedoCalc Pro Engine</strong> — ASTM D2435 / SNI 2812:2011</p>
-        
-        <h2>1. Informasi Proyek & Geolocation</h2>
-        <table>
-            <tr><th style="text-align:left;">Nama Proyek / Titik BH</th><td>{nama_proyek}</td><th style="text-align:left;">Kedalaman Sampel</th><td>{kedalaman} m</td></tr>
-            <tr><th style="text-align:left;">Koordinat</th><td>Lat: {lat:.6f}, Lon: {lon:.6f}</td><th style="text-align:left;">Tebal Lempung</th><td>{tebal_lempung} m</td></tr>
-        </table>
-
-        <h2>2. Kurva Konsolidasi & Grafik Penurunan</h2>
-        <div class="img-container">
-            <div class="img-box">
-                <p><strong>Kurva e - log p</strong></p>
-                <img src="data:image/png;base64,{img_elogp}" />
-            </div>
-            <div class="img-box">
-                <p><strong>Grafik Penurunan vs √t</strong></p>
-                <img src="data:image/png;base64,{img_time}" />
-            </div>
-        </div>
-
-        <h2>3. Pembahasan & Kesimpulan Geoteknik</h2>
-        <p><strong>{pembahasan_text}</strong></p>
-        <p><strong>{kesimpulan_text}</strong></p>
-
-        <h2>4. Estimasi Biaya & Rekomendasi Proyek</h2>
-        <p style="background: #f8fafc; padding: 10px; border-left: 4px solid #1e3a8a;"><strong>{rab_text}</strong></p>
-    </body>
-    </html>
-    """
-    return html_content.encode('utf-8')
-    html_bytes = buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_t, t90_b)
-
-st.download_button(
-    label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
-    data=html_bytes,
-    file_name="Laporan_Rekap_OedoCalc_Pro.html",
-    mime="text/html"
-)
+    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.curr_lat:.6f}`, Lon `{st.session_state.curr_lon:.6f}`")
