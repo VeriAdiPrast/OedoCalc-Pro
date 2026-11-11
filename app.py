@@ -548,10 +548,10 @@ with tab_qc:
     st.markdown("""
     | Parameter Uji | Standar Acuan | Status Kepatuhan | Catatan Quality Control |
     | :--- | :--- | :--- | :--- |
-    | **Rasio Pembebanan (LIR)** | $\Delta p / p = 1.0$ (Pembebanan 2x Lipat) | 🟢 PASSED | Rasio pembebanan 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 kg/cm² sesuai baku. |
+    | **Rasio Pembebanan (LIR)** | Δp / p = 1.0 (Pembebanan 2x Lipat) | 🟢 PASSED | Rasio pembebanan 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 kg/cm² sesuai baku. |
     | **Durasi Beban per Tahap** | Minimum 24 Jam (1440 menit) | 🟢 PASSED | Pembacaan arloji lengkap dari 6 detik hingga 24 jam. |
-    | **Rasio Diameter/Tinggi** | $D/H_0 \ge 2.5$ | 🟢 PASSED | Ring Oedometer $63.5\text{ mm} / 20.0\text{ mm} = 3.175 \ge 2.5$. |
-    | **Derajat Kejenuhan ($S_r$)** | $S_r \approx 100\%$ | 🟡 VERIFY LAB | Pastikan sampel direndam air pori sebelum uji pembebanan dimulai. |
+    | **Rasio Diameter/Tinggi** | D / H₀ ≥ 2.5 | 🟢 PASSED | Ring Oedometer 63.5 mm / 20.0 mm = 3.175 ≥ 2.5. |
+    | **Derajat Kejenuhan (S_r)** | S_r ≈ 100% | 🟡 VERIFY LAB | Pastikan sampel direndam air pori sebelum uji pembebanan dimulai. |
     """)
 
 # --- TAB 4: PETA LOKASI SAMPEL TANAH INTERAKTIF ---
