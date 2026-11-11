@@ -312,4 +312,46 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         
         pekerjaan_items = [
             ("Pengadaan & Penetrasi PVD (Prefabricated Vertical Drain)", panjang_pvd_total, "meter", reg_price["pvd_m"]),
-            ("Pengadaan & Pemadatan Timbunan Preloading (Tanah P
+            ("Pengadaan & Pemadatan Timbunan Preloading (Tanah Pilihan)", volume_preloading, "m³", reg_price["preloading_m3"]),
+            ("Mobilisasi & Demobilisasi PVD Rig Inserter", 1, "ls", reg_price["rig_mobilization"]),
+            ("Pemasangan Instrumentasi Geoteknik (Settlement Plate)", 1, "ls", reg_price["instrumentation"])
+        ]
+
+    list_uraian, list_vol, list_sat, list_harga, list_total = [], [], [], [], []
+    total_rab_keseluruhan = 0
+
+    for item in pekerjaan_items:
+        uraian, vol, sat, hg = item
+        subtotal = vol * hg
+        list_uraian.append(uraian)
+        list_vol.append(vol)
+        list_sat.append(sat)
+        list_harga.append(hg)
+        list_total.append(subtotal)
+        total_rab_keseluruhan += subtotal
+
+    df_rab = pd.DataFrame({
+        'Uraian Pekerjaan / Material / Alat': list_uraian,
+        'Volume': list_vol,
+        'Satuan': list_sat,
+        'Harga Satuan Regional (Rp)': list_harga,
+        'Total Biaya (Rp)': list_total
+    })
+
+    laporan_teknis = (
+        f"--- HASIL ANALISIS DATA MENTAH LAB ---\n"
+        f"Beban Diuji (kg/cm²)  : {beban_list}\n"
+        f"Indeks Kompresi (Cc)  : {Cc:.4f}\n"
+        f"Klasifikasi Tanah     : {kemampatan}\n\n"
+        f"--- ESTIMASI WAKTU PENURUNAN LAPANGAN ---\n"
+        f"Tebal Lapisan Lempung : {tebal_lempung} meter\n"
+        f"Waktu Penurunan t90   : {t90_tahun:.2f} Tahun ({t90_bulan:.0f} Bulan)\n\n"
+        f"--- REKOMENDASI TEKNIS ---\n"
+        f"Metode Penanganan     : {rekomendasi_nama}\n"
+        f"Daftar Alat Dibutuhkan: {alat_butuh}\n"
+    )
+
+    cv_cm2_min = cv * (10000.0 / 525600.0)
+
+    pembahasan_text = (
+        f"Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, sesuai dengan prinsip konsolidasi Terzaghi. Berdasarkan hasil perhitungan, didapatkan nilai
