@@ -15,7 +15,41 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Fungsi Pembuat Template Excel Kosong
+# 2. Database Regional Harga Sewa Alat & Material Geoteknik Indonesia
+DATA_REGIONAL = {
+    "Jawa (Jabodetabek / Jawa Barat)": {
+        "pvd_m": 45000, "preloading_m3": 120000, "rig_mobilization": 35000000, 
+        "instrumentation": 15000000, "minipile_m": 220000, "hspd_mobilization": 25000000,
+        "shallow_m2": 350000
+    },
+    "Jawa Tengah / Jawa Timur": {
+        "pvd_m": 42000, "preloading_m3": 110000, "rig_mobilization": 30000000, 
+        "instrumentation": 12000000, "minipile_m": 200000, "hspd_mobilization": 22000000,
+        "shallow_m2": 320000
+    },
+    "Sumatera": {
+        "pvd_m": 55000, "preloading_m3": 150000, "rig_mobilization": 50000000, 
+        "instrumentation": 20000000, "minipile_m": 270000, "hspd_mobilization": 35000000,
+        "shallow_m2": 420000
+    },
+    "Kalimantan": {
+        "pvd_m": 65000, "preloading_m3": 175000, "rig_mobilization": 65000000, 
+        "instrumentation": 25000000, "minipile_m": 310000, "hspd_mobilization": 45000000,
+        "shallow_m2": 480000
+    },
+    "Sulawesi": {
+        "pvd_m": 60000, "preloading_m3": 160000, "rig_mobilization": 55000000, 
+        "instrumentation": 22000000, "minipile_m": 290000, "hspd_mobilization": 40000000,
+        "shallow_m2": 450000
+    },
+    "Papua & Maluku": {
+        "pvd_m": 85000, "preloading_m3": 230000, "rig_mobilization": 95000000, 
+        "instrumentation": 35000000, "minipile_m": 420000, "hspd_mobilization": 70000000,
+        "shallow_m2": 650000
+    }
+}
+
+# 3. Fungsi Pembuat Template Excel Kosong
 def buat_template_excel_kosong():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -36,22 +70,17 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 3. Konversi Matplotlib Figure ke Base64 (Untuk PDF/HTML)
+# 4. Konversi Matplotlib Figure ke Base64
 def fig_to_base64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("utf-8")
 
-# 4. Fungsi Pembuat Dokumen Rekap Laporan HTML/PDF Siap Cetak (Format Formal)
-def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_text, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan):
+# 5. Pembuat Laporan HTML/PDF Formal Siap Cetak
+def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_html, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan, wilayah):
     img_elogp = fig_to_base64(fig_elogp)
     img_time = fig_to_base64(fig_time)
-    
-    # Membersihkan teks dari penomoran bab lama (10.7, 10.8, 10.9) jika ada
-    clean_pembahasan = pembahasan_text.replace("10.7 Pembahasan", "").strip()
-    clean_kesimpulan = kesimpulan_text.replace("10.8 Kesimpulan", "").replace("10.9 Daftar Pustaka", "").strip()
-    
     cv_cm2_min = cv * (10000.0 / 525600.0)
 
     html_content = f"""
@@ -61,143 +90,37 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
         <meta charset="UTF-8">
         <title>Laporan Hasil Uji Konsolidasi Oedometer</title>
         <style>
-            @page {{
-                size: A4;
-                margin: 20mm;
-            }}
-            body {{
-                font-family: 'Times New Roman', Times, serif;
-                color: #111827;
-                line-height: 1.6;
-                font-size: 11pt;
-                padding: 10px;
-            }}
-            .header-kop {{
-                text-align: center;
-                border-bottom: 3px double #1e3a8a;
-                padding-bottom: 10px;
-                margin-bottom: 20px;
-            }}
-            .header-kop h1 {{
-                font-size: 16pt;
-                margin: 0;
-                color: #1e3a8a;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-            }}
-            .header-kop p {{
-                font-size: 9pt;
-                margin: 3px 0 0 0;
-                color: #4b5563;
-                font-style: italic;
-            }}
-            h2 {{
-                font-size: 12pt;
-                color: #1e3a8a;
-                border-bottom: 1px solid #94a3b8;
-                padding-bottom: 4px;
-                margin-top: 25px;
-                text-transform: uppercase;
-            }}
-            h3 {{
-                font-size: 11pt;
-                color: #0f172a;
-                margin-top: 15px;
-                margin-bottom: 5px;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-                font-size: 10pt;
-            }}
-            th, td {{
-                border: 1px solid #64748b;
-                padding: 6px 10px;
-                text-align: left;
-            }}
-            th {{
-                background-color: #f1f5f9;
-                font-weight: bold;
-                color: #1e293b;
-            }}
-            .table-center td, .table-center th {{
-                text-align: center;
-            }}
-            p {{
-                text-align: justify;
-                text-indent: 30px;
-                margin-top: 5px;
-                margin-bottom: 10px;
-            }}
-            .img-container {{
-                display: flex;
-                gap: 15px;
-                margin-top: 15px;
-                justify-content: center;
-            }}
-            .img-box {{
-                flex: 1;
-                text-align: center;
-                font-size: 9pt;
-                font-weight: bold;
-            }}
-            .img-box img {{
-                width: 100%;
-                max-width: 350px;
-                height: auto;
-                border: 1px solid #cbd5e1;
-                margin-top: 5px;
-                border-radius: 4px;
-            }}
-            .box-rab {{
-                background-color: #f8fafc;
-                border: 1px solid #cbd5e1;
-                border-left: 5px solid #1e3a8a;
-                padding: 12px 15px;
-                font-size: 10pt;
-                margin-top: 10px;
-            }}
-            .footer-sign {{
-                margin-top: 40px;
-                width: 100%;
-                display: flex;
-                justify-content: space-between;
-                font-size: 10pt;
-            }}
+            @page {{ size: A4; margin: 20mm; }}
+            body {{ font-family: 'Times New Roman', Times, serif; color: #111827; line-height: 1.6; font-size: 11pt; padding: 10px; }}
+            .header-kop {{ text-align: center; border-bottom: 3px double #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }}
+            .header-kop h1 {{ font-size: 16pt; margin: 0; color: #1e3a8a; text-transform: uppercase; letter-spacing: 1px; }}
+            .header-kop p {{ font-size: 9pt; margin: 3px 0 0 0; color: #4b5563; font-style: italic; }}
+            h2 {{ font-size: 12pt; color: #1e3a8a; border-bottom: 1px solid #94a3b8; padding-bottom: 4px; margin-top: 25px; text-transform: uppercase; }}
+            h3 {{ font-size: 11pt; color: #0f172a; margin-top: 15px; margin-bottom: 5px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt; }}
+            th, td {{ border: 1px solid #64748b; padding: 6px 10px; text-align: left; }}
+            th {{ background-color: #f1f5f9; font-weight: bold; color: #1e293b; }}
+            p {{ text-align: justify; text-indent: 30px; margin-top: 5px; margin-bottom: 10px; }}
+            .img-container {{ display: flex; gap: 15px; margin-top: 15px; justify-content: center; }}
+            .img-box {{ flex: 1; text-align: center; font-size: 9pt; font-weight: bold; }}
+            .img-box img {{ width: 100%; max-width: 350px; height: auto; border: 1px solid #cbd5e1; margin-top: 5px; border-radius: 4px; }}
+            .box-rab {{ background-color: #ffffff; border: 1px solid #cbd5e1; padding: 10px; font-size: 10pt; margin-top: 10px; }}
         </style>
     </head>
     <body>
-        <!-- KOP LAPORAN FORMAL -->
         <div class="header-kop">
             <h1>Laporan Analisis Geoteknik & Uji Konsolidasi</h1>
             <p>Laboratorium Mekanika Tanah — Standard ASTM D2435 / SNI 2812:2011</p>
         </div>
 
-        <!-- BAB 1 -->
         <h2>BAB 1. INFORMASI PROYEK & SAMPLING</h2>
         <table>
-            <tr>
-                <th width="25%">Nama Proyek / Titik BH</th>
-                <td width="25%">{nama_proyek}</td>
-                <th width="25%">Kedalaman Sampel</th>
-                <td width="25%">{kedalaman} m</td>
-            </tr>
-            <tr>
-                <th>Koordinat Geolocation</th>
-                <td>Lat: {lat:.6f}, Lon: {lon:.6f}</td>
-                <th>Tebal Lapisan Lempung</th>
-                <td>{tebal_lempung} m</td>
-            </tr>
-            <tr>
-                <th>Koefisien Konsolidasi (Cv)</th>
-                <td>{cv:.4f} m²/thn</td>
-                <th>Waktu Penurunan (t90)</th>
-                <td>{t90_tahun:.2f} Tahun ({t90_bulan:.0f} Bulan)</td>
-            </tr>
+            <tr><th width="25%">Nama Proyek / Titik BH</th><td width="25%">{nama_proyek}</td><th width="25%">Kedalaman Sampel</th><td width="25%">{kedalaman} m</td></tr>
+            <tr><th>Koordinat Geolocation</th><td>Lat: {lat:.6f}, Lon: {lon:.6f}</td><th>Wilayah Acuan Harga</th><td>{wilayah}</td></tr>
+            <tr><th>Tebal Lapisan Lempung</th><td>{tebal_lempung} m</td><th>Koefisien Konsolidasi (Cv)</th><td>{cv:.4f} m²/thn</td></tr>
+            <tr><th>Indeks Kompresi (Cc)</th><td>{Cc:.4f}</td><th>Waktu Penurunan (t90)</th><td>{t90_tahun:.2f} Thn ({t90_bulan:.0f} Bln)</td></tr>
         </table>
 
-        <!-- BAB 2 -->
         <h2>BAB 2. GRAFIK & KURVA KONSOLIDASI</h2>
         <div class="img-container">
             <div class="img-box">
@@ -210,16 +133,13 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
             </div>
         </div>
 
-        <!-- BAB 3 -->
         <h2>BAB 3. PEMBAHASAN & KESIMPULAN</h2>
-        
         <h3>3.1 Pembahasan Geoteknik</h3>
         <p>Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, sesuai dengan prinsip konsolidasi Terzaghi.</p>
-        <p>Berdasarkan hasil perhitungan, didapatkan nilai koefisien konsolidasi (Cv) sebesar <strong>{cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit)</strong> dengan Indeks Kompresi (Cc) sebesar <strong>{Cc:.4f}</strong>. Nilai Cv ini merupakan parameter krusial dalam menentukan kecepatan laju penurunan tanah di lapangan; semakin kecil nilai Cv, maka semakin lambat proses konsolidasi yang terjadi. Selain itu, hubungan antara angka pori (e) dan logaritma tekanan (log P) menunjukkan tren penurunan yang konsisten, yang mengonfirmasi bahwa penambahan beban menyebabkan pengurangan volume rongga pori tanah. Hasil ini sangat penting untuk memprediksi besarnya <em>settlement</em> atau penurunan yang mungkin terjadi pada struktur bangunan yang akan didirikan di atas lapisan tanah tersebut di masa depan.</p>
+        <p>Berdasarkan hasil perhitungan, didapatkan nilai koefisien konsolidasi (Cv) sebesar <strong>{cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit)</strong> dengan Indeks Kompresi (Cc) sebesar <strong>{Cc:.4f}</strong>. Nilai Cv ini merupakan parameter krusial dalam menentukan kecepatan laju penurunan tanah di lapangan; semakin kecil nilai Cv, maka semakin lambat proses konsolidasi yang terjadi. Hubungan antara angka pori (e) dan logaritma tekanan (log P) menunjukkan tren penurunan yang konsisten, mengonfirmasi pengurangan volume rongga pori tanah.</p>
 
         <h3>3.2 Kesimpulan</h3>
         <p>Berdasarkan hasil analisis uji konsolidasi yang dilakukan di laboratorium mekanika tanah, didapatkan nilai koefisien konsolidasi (Cv) sebesar <strong>{cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit)</strong> dan waktu penurunan (t90) sebesar <strong>{t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan)</strong>. Nilai ini merupakan parameter fundamental yang mendeskripsikan laju pemampatan tanah dan keluarnya air pori saat menerima beban.</p>
-        <p>Semakin kecil nilai Cv, semakin lama waktu yang dibutuhkan oleh lapisan tanah tersebut untuk mencapai penurunan maksimumnya. Informasi ini sangat esensial dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman dari risiko penurunan diferensial di masa mendatang.</p>
 
         <h3>3.3 Daftar Pustaka</h3>
         <ol style="font-size: 10pt; margin-top: 5px; padding-left: 20px;">
@@ -227,50 +147,39 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
             <li>Badan Standardisasi Nasional. 2011. <em>Cara Uji Konsolidasi Tanah Satu Dimensi (SNI 2812:2011)</em>. Jakarta.</li>
         </ol>
 
-        <!-- BAB 4 -->
-        <h2>BAB 4. REKOMENDASI TEKNIS & ESTIMASI RAB</h2>
+        <h2>BAB 4. REKOMENDASI TEKNIS & ESTIMASI RAB REGIONAL</h2>
         <div class="box-rab">
-            <strong>Ringkasan Rekomendasi & Biaya Proyek:</strong><br>
-            {rab_text.replace('\n', '<br>')}
+            {rab_html}
         </div>
     </body>
     </html>
     """
     return html_content.encode('utf-8')
 
-# 5. Pembuat Single File Excel Gabungan Output
-def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembahasan_text, kesimpulan_text, Cc, t90_tahun, t90_bulan, total_bawah, total_atas):
+# 6. Pembuat Single File Excel Gabungan Output
+def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembahasan_text, kesimpulan_text, Cc, t90_tahun, t90_bulan, df_rab):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_tabel_10_5.to_excel(writer, index=False, sheet_name='Tabel_10_5_Analisis_Konsolidasi')
         df_export.to_excel(writer, index=False, sheet_name='Ringkasan_Konsolidasi')
+        df_rab.to_excel(writer, index=False, sheet_name='Detail_RAB_Regional')
         
         df_parameter = pd.DataFrame({
             'Parameter / Indikator': [
-                'Indeks Kompresi (Cc)',
-                'Waktu Penurunan t90 (Tahun)',
-                'Waktu Penurunan t90 (Bulan)',
-                'Estimasi RAB Batas Bawah (Rp)',
-                'Estimasi RAB Batas Atas (Rp)',
-                'Pembahasan Geoteknik',
-                'Kesimpulan Geoteknik'
+                'Indeks Kompresi (Cc)', 'Waktu Penurunan t90 (Tahun)', 'Waktu Penurunan t90 (Bulan)',
+                'Pembahasan Geoteknik', 'Kesimpulan Geoteknik'
             ],
             'Nilai Output': [
-                round(Cc, 4),
-                round(t90_tahun, 2),
-                round(t90_bulan, 0),
-                total_bawah,
-                total_atas,
-                pembahasan_text.replace("\n", " "),
-                kesimpulan_text.replace("\n", " ")
+                round(Cc, 4), round(t90_tahun, 2), round(t90_bulan, 0),
+                pembahasan_text.replace("\n", " "), kesimpulan_text.replace("\n", " ")
             ]
         })
-        df_parameter.to_excel(writer, index=False, sheet_name='Laporan_Teknis_&_RAB')
+        df_parameter.to_excel(writer, index=False, sheet_name='Laporan_Teknis')
         
     return output.getvalue()
 
-# 6. Logika Analisis Oedometer
-def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs):
+# 7. Logika Analisis Oedometer & Pembuat RAB Detil per Wilayah
+def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
     dial_awal = float(df.iloc[0, 2])
@@ -358,24 +267,72 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     ax2.invert_yaxis()
     plt.tight_layout()
 
+    # --- PERHITUNGAN RAB DETIL DAN REKOMENDASI PERBAIKAN ---
+    reg_price = DATA_REGIONAL.get(wilayah_terpilih, DATA_REGIONAL["Jawa (Jabodetabek / Jawa Barat)"])
+    
     if Cc < 0.2:
         kemampatan = "RENDAH (Low Compressibility) - Tanah Padat"
-        rekomendasi = "Pondasi Dangkal (Footplat / Batu Kali)."
-        pekerjaan = "- Galian tanah & urugan pasir\n- Lean concrete\n- Pembesian & pengecoran"
-        total_bawah = luas_bangunan * 500000
-        total_atas = luas_bangunan * 600000
+        rekomendasi_nama = "Pondasi Dangkal (Footplat / Batu Kali) & Pemadatan Standard"
+        alat_butuh = "Bulldozer 100 HP, Vibro Roller 10 Ton, Excavator Backhoe 0.8 m³"
+        
+        pekerjaan_items = [
+            ("Galian & Pembersihan Lahan", luas_bangunan * 0.5, "m³", reg_price["shallow_m2"] * 0.2),
+            ("Urugan Pasir & Lapisan Subbase", luas_bangunan * 0.3, "m³", reg_price["shallow_m2"] * 0.4),
+            ("Pekerjaan Lean Concrete & Pembesian", luas_bangunan, "m²", reg_price["shallow_m2"] * 0.4),
+            ("Mobilisasi / Demobilisasi Alat Berat", 1, "ls", 15000000)
+        ]
     elif 0.2 <= Cc <= 0.4:
         kemampatan = "SEDANG (Medium Compressibility) - Lempung Sedang"
-        rekomendasi = "Pondasi Minipile (Tiang Pancang Skala Kecil)."
-        pekerjaan = "- Mobilisasi alat pancang\n- Pengadaan & pemancangan tiang\n- Pile Cap"
-        total_bawah = (luas_bangunan * 1150000) + 25000000
-        total_atas = (luas_bangunan * 1350000) + 25000000
+        rekomendasi_nama = "Pondasi Minipile (Tiang Pancang Presisi / HSPD)"
+        alat_butuh = "Hydraulic Static Pile Driver (HSPD) / Mobile Rig Pancang, Mobile Crane 25 Ton, Dumptruck 12 m³"
+        
+        jumlah_tiang = math.ceil((luas_bangunan / 12.0))
+        panjang_tiang_total = jumlah_tiang * tebal_lempung
+        
+        pekerjaan_items = [
+            ("Pengadaan Tiang Pancang Minipile 28x28", panjang_tiang_total, "meter", reg_price["minipile_m"] * 0.6),
+            ("Jasa Pemancangan dengan Rig HSPD", panjang_tiang_total, "meter", reg_price["minipile_m"] * 0.4),
+            ("Pekerjaan Galian & Pile Cap Structural", luas_bangunan, "m²", reg_price["shallow_m2"] * 0.8),
+            ("Mobilisasi Rig Pemancang & Crane", 1, "ls", reg_price["hspd_mobilization"])
+        ]
     else:
         kemampatan = "TINGGI (High Compressibility) - Tanah Sangat Lunak"
-        rekomendasi = "Perbaikan Tanah Masif (PVD + Preloading)."
-        pekerjaan = "- Geotextile & Sand Blanket\n- Penetrasi PVD dengan Rig\n- Preloading & Monitoring"
-        total_bawah = (luas_bangunan * 2600000) + 45000000
-        total_atas = (luas_bangunan * 2900000) + 45000000
+        rekomendasi_nama = "Perbaikan Tanah Masif (PVD + Preloading Timbunan Tanah)"
+        alat_butuh = "PVD Rig Inserter (Mandrel Rig), Excavator 20 Ton, Vibro Roller 12 Ton, Dumptruck 20 m³, Instrument Settlement Plate & Inclinometer"
+        
+        # Grid PVD 1.2m x 1.2m
+        titik_pvd = math.ceil(luas_bangunan / 1.44)
+        panjang_pvd_total = titik_pvd * (tebal_lempung + 1.0)
+        volume_preloading = luas_bangunan * 3.0 # Timbunan tinggi 3m
+        
+        pekerjaan_items = [
+            ("Pengadaan & Penetrasi PVD (Prefabricated Vertical Drain)", panjang_pvd_total, "meter", reg_price["pvd_m"]),
+            ("Pengadaan & Pemadatan Timbunan Preloading (Tanah Pilihan)", volume_preloading, "m³", reg_price["preloading_m3"]),
+            ("Mobilisasi & Demobilisasi PVD Rig Inserter", 1, "ls", reg_price["rig_mobilization"]),
+            ("Pemasangan Instrumentasi Geoteknik (Settlement Plate)", 1, "ls", reg_price["instrumentation"])
+        ]
+
+    # Buat Dataframe RAB
+    list_uraian, list_vol, list_sat, list_harga, list_total = [], [], [], [], []
+    total_rab_keseluruhan = 0
+
+    for item in pekerjaan_items:
+        uraian, vol, sat, hg = item
+        subtotal = vol * hg
+        list_uraian.append(uraian)
+        list_vol.append(vol)
+        list_sat.append(sat)
+        list_harga.append(hg)
+        list_total.append(subtotal)
+        total_rab_keseluruhan += subtotal
+
+    df_rab = pd.DataFrame({
+        'Uraian Pekerjaan / Material / Alat': list_uraian,
+        'Volume': list_vol,
+        'Satuan': list_sat,
+        'Harga Satuan Regional (Rp)': list_harga,
+        'Total Biaya (Rp)': list_total
+    })
 
     laporan_teknis = (
         f"--- HASIL ANALISIS DATA MENTAH LAB ---\n"
@@ -386,56 +343,21 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         f"Tebal Lapisan Lempung : {tebal_lempung} meter\n"
         f"Waktu Penurunan t90   : {t90_tahun:.2f} Tahun ({t90_bulan:.0f} Bulan)\n\n"
         f"--- REKOMENDASI TEKNIS ---\n"
-        f"Metode Penanganan     : {rekomendasi}\n"
-        f"Tahapan Pekerjaan     :\n{pekerjaan}\n"
+        f"Metode Penanganan     : {rekomendasi_nama}\n"
+        f"Daftar Alat Dibutuhkan: {alat_butuh}\n"
     )
 
     cv_cm2_min = cv * (10000.0 / 525600.0)
 
     pembahasan_text = (
-        f"10.7 Pembahasan\n\n"
-        f"Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel "
-        f"tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang "
-        f"diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, "
-        f"sesuai dengan prinsip konsolidasi Terzaghi. Berdasarkan hasil perhitungan, didapatkan nilai koefisien "
-        f"konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dengan Indeks Kompresi (Cc) sebesar {Cc:.4f}. "
-        f"Nilai Cv ini merupakan parameter krusial dalam menentukan kecepatan laju penurunan tanah di lapangan; "
-        f"semakin kecil nilai Cv, maka semakin lambat proses konsolidasi yang terjadi. Selain itu, hubungan antara "
-        f"angka pori (e) dan logaritma tekanan (log P) menunjukkan tren penurunan yang konsisten, yang mengonfirmasi "
-        f"bahwa penambahan beban menyebabkan pengurangan volume rongga pori tanah. Hasil ini sangat penting untuk "
-        f"memprediksi besarnya settlement atau penurunan yang mungkin terjadi pada struktur bangunan yang akan didirikan "
-        f"di atas lapisan tanah tersebut di masa depan."
+        f"Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, sesuai dengan prinsip konsolidasi Terzaghi. Berdasarkan hasil perhitungan, didapatkan nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dengan Indeks Kompresi (Cc) sebesar {Cc:.4f}."
     )
 
     kesimpulan_text = (
-        f"10.8 Kesimpulan\n\n"
-        f"Berdasarkan hasil analisis uji konsolidasi yang dilakukan di laboratorium mekanika tanah, didapatkan "
-        f"nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dan waktu penurunan (t90) "
-        f"sebesar {t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan). Nilai ini merupakan parameter fundamental yang mendeskripsikan "
-        f"laju pemampatan tanah dan keluarnya air pori saat menerima beban. Semakin kecil nilai Cv, semakin lama waktu "
-        f"yang dibutuhkan oleh lapisan tanah tersebut untuk mencapai penurunan maksimumnya. Informasi ini sangat esensial "
-        f"dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman dari risiko penurunan diferensial di masa mendatang.\n\n"
-        f"10.9 Daftar Pustaka\n"
-        f"Das, Braja M. 2002. Mekanika Tanah (Prinsip-prinsip Rekayasa Geoteknis). Jilid 1. Jakarta: Erlangga.\n"
-        f"Badan Standardisasi Nasional. 2011. Cara Uji Konsolidasi Tanah Satu Dimensi (SNI 2812:2011). Jakarta."
+        f"Berdasarkan hasil analisis uji konsolidasi laboratorium mekanika tanah, didapatkan nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dan waktu penurunan (t90) sebesar {t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan). Informasi ini sangat esensial dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman."
     )
 
-    rab_text = f"ESTIMASI TOTAL BIAYA PROYEK ({luas_bangunan} m²):\nRp {total_bawah:,.0f} s/d Rp {total_atas:,.0f}"
-
-    df_export = pd.DataFrame({
-        'Beban (kg/cm2)': beban_list,
-        'Beban (kPa)': p_kpa,
-        'Penurunan Total (mm)': penurunan_akhir_list,
-        'Angka Pori (e)': e_list
-    })
-
-    return laporan_teknis, pembahasan_text, kesimpulan_text, rab_text, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan, total_bawah, total_atas
-
-# 7. Inisialisasi Session State Koordinat Global
-if 'curr_lat' not in st.session_state:
-    st.session_state.curr_lat = -6.208800
-if 'curr_lon' not in st.session_state:
-    st.session_state.curr_lon = 106.845600
+    return laporan_teknis, pembahasan_text, kesimpulan_text, df_rab, total_rab_keseluruhan, rekomendasi_nama, alat_butuh, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan
 
 # 8. PENDEKLARASIAN TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
@@ -457,6 +379,10 @@ with tab_kalkulator:
 
     with col1:
         uploaded_file = st.file_uploader("Unggah File Data Mentah (.xlsx / .csv)", type=["csv", "xlsx"])
+        wilayah_terpilih = st.selectbox(
+            "📍 Pilih Wilayah Acuan Harga Sewa Alat & Bahan",
+            options=list(DATA_REGIONAL.keys())
+        )
         D_sample = st.number_input("Diameter Cincin (mm)", value=63.5)
         H0 = st.number_input("Tinggi Sampel H0 (mm)", value=20.0)
         e0 = st.number_input("Angka Pori Awal (e0)", value=1.15)
@@ -470,15 +396,15 @@ with tab_kalkulator:
     with col2:
         if uploaded_file and btn:
             df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-            laporan, pembahasan, kesimpulan, rab, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_t, t90_b, rb_b, rb_a = proses_oedometer(
-                df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs
+            laporan, pembahasan, kesimpulan, df_rab, total_rab, rek_nama, alat_butuh, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_t, t90_b = proses_oedometer(
+                df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih
             )
             
             subtab1, subtab2, subtab3, subtab4, subtab5, subtab6 = st.tabs([
                 "📋 Tabel 10.5 Analisis", 
                 "📝 Pembahasan & Kesimpulan", 
                 "📄 Laporan Teknis", 
-                "💰 Estimasi RAB", 
+                "💰 Estimasi RAB Regional", 
                 "📈 Kurva e - log p", 
                 "📉 Grafik Penurunan"
             ])
@@ -487,13 +413,17 @@ with tab_kalkulator:
                 st.subheader("Tabel 10.5 Analisis Data Konsolidasi")
                 st.dataframe(df_tabel_10_5, use_container_width=True)
             with subtab2:
-                st.markdown(f"### {pembahasan}")
+                st.markdown(f"### 3.1 Pembahasan Geoteknik\n{pembahasan}")
                 st.divider()
-                st.markdown(f"### {kesimpulan}")
+                st.markdown(f"### 3.2 Kesimpulan\n{kesimpulan}")
             with subtab3:
                 st.code(laporan)
             with subtab4:
-                st.success(rab)
+                st.subheader(f"🏗️ Rekomendasi Teknis: {rek_nama}")
+                st.info(f"**Tipe Alat Berat Dibutuhkan:** {alat_butuh}")
+                st.subheader(f"📊 Rincian RAB Regional ({wilayah_terpilih})")
+                st.dataframe(df_rab.style.format({'Harga Satuan Regional (Rp)': 'Rp {:,.0f}', 'Total Biaya (Rp)': 'Rp {:,.0f}'}), use_container_width=True)
+                st.success(f"### ESTIMASI TOTAL BIAYA PROYEK: Rp {total_rab:,.0f}")
             with subtab5:
                 st.pyplot(fig_elogp)
             with subtab6:
@@ -502,7 +432,7 @@ with tab_kalkulator:
             col_btn1, col_btn2 = st.columns(2)
             
             with col_btn1:
-                excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, rb_b, rb_a)
+                excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, df_rab)
                 st.download_button(
                     label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
                     data=excel_gabungan_bytes,
@@ -511,11 +441,11 @@ with tab_kalkulator:
                 )
             
             with col_btn2:
-                # Pembuatan html_bytes dimasukkan ke dalam blok 'btn' agar variabel dipastikan terdefinisi
+                rab_html_table = f"<h3>Rekomendasi Metode: {rek_nama}</h3><p><strong>Alat Berat Dibutuhkan:</strong> {alat_butuh}</p>" + df_rab.to_html(index=False) + f"<h4>TOTAL RAB ESTIMASI REGIONAL ({wilayah_terpilih}): Rp {total_rab:,.0f}</h4>"
                 html_bytes = buat_laporan_html_lengkap(
-                    df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab, 
+                    df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab_html_table, 
                     "BH-01 Proyek Gedung", st.session_state.curr_lat, st.session_state.curr_lon, 
-                    4.5, tebal_lempung, cv, Cc, t90_t, t90_b
+                    4.5, tebal_lempung, cv, Cc, t90_t, t90_b, wilayah_terpilih
                 )
                 st.download_button(
                     label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
