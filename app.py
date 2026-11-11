@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. INISIALISASI SESSION STATE KOORDINAT (Wajib di Paling Atas!)
+# 2. INISIALISASI SESSION STATE KOORDINAT (Di Paling Atas!)
 if 'curr_lat' not in st.session_state:
     st.session_state.curr_lat = -6.208800
 if 'curr_lon' not in st.session_state:
@@ -184,7 +184,7 @@ def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembaha
         
     return output.getvalue()
 
-# 8. Logika Analisis Oedometer & Pembuat RAB Detil per Wilayah
+# 8. Logika Analisis Oedometer
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -273,7 +273,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     ax2.invert_yaxis()
     plt.tight_layout()
 
-    # PERHITUNGAN RAB DETIL DAN REKOMENDASI PERBAIKAN
+    # RAB Detil
     reg_price = DATA_REGIONAL.get(wilayah_terpilih, DATA_REGIONAL["Jawa (Jabodetabek / Jawa Barat)"])
     
     if Cc < 0.2:
@@ -312,211 +312,4 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         
         pekerjaan_items = [
             ("Pengadaan & Penetrasi PVD (Prefabricated Vertical Drain)", panjang_pvd_total, "meter", reg_price["pvd_m"]),
-            ("Pengadaan & Pemadatan Timbunan Preloading (Tanah Pilihan)", volume_preloading, "m³", reg_price["preloading_m3"]),
-            ("Mobilisasi & Demobilisasi PVD Rig Inserter", 1, "ls", reg_price["rig_mobilization"]),
-            ("Pemasangan Instrumentasi Geoteknik (Settlement Plate)", 1, "ls", reg_price["instrumentation"])
-        ]
-
-    list_uraian, list_vol, list_sat, list_harga, list_total = [], [], [], [], []
-    total_rab_keseluruhan = 0
-
-    for item in pekerjaan_items:
-        uraian, vol, sat, hg = item
-        subtotal = vol * hg
-        list_uraian.append(uraian)
-        list_vol.append(vol)
-        list_sat.append(sat)
-        list_harga.append(hg)
-        list_total.append(subtotal)
-        total_rab_keseluruhan += subtotal
-
-    df_rab = pd.DataFrame({
-        'Uraian Pekerjaan / Material / Alat': list_uraian,
-        'Volume': list_vol,
-        'Satuan': list_sat,
-        'Harga Satuan Regional (Rp)': list_harga,
-        'Total Biaya (Rp)': list_total
-    })
-
-    laporan_teknis = (
-        f"--- HASIL ANALISIS DATA MENTAH LAB ---\n"
-        f"Beban Diuji (kg/cm²)  : {beban_list}\n"
-        f"Indeks Kompresi (Cc)  : {Cc:.4f}\n"
-        f"Klasifikasi Tanah     : {kemampatan}\n\n"
-        f"--- ESTIMASI WAKTU PENURUNAN LAPANGAN ---\n"
-        f"Tebal Lapisan Lempung : {tebal_lempung} meter\n"
-        f"Waktu Penurunan t90   : {t90_tahun:.2f} Tahun ({t90_bulan:.0f} Bulan)\n\n"
-        f"--- REKOMENDASI TEKNIS ---\n"
-        f"Metode Penanganan     : {rekomendasi_nama}\n"
-        f"Daftar Alat Dibutuhkan: {alat_butuh}\n"
-    )
-
-    cv_cm2_min = cv * (10000.0 / 525600.0)
-
-    pembahasan_text = (
-        f"Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, sesuai dengan prinsip konsolidasi Terzaghi. Berdasarkan hasil perhitungan, didapatkan nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dengan Indeks Kompresi (Cc) sebesar {Cc:.4f}."
-    )
-
-    kesimpulan_text = (
-        f"Berdasarkan hasil analisis uji konsolidasi laboratorium mekanika tanah, didapatkan nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dan waktu penurunan (t90) sebesar {t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan). Informasi ini sangat esensial dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman."
-    )
-
-    return laporan_teknis, pembahasan_text, kesimpulan_text, df_rab, total_rab_keseluruhan, rekomendasi_nama, alat_butuh, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan
-
-# 9. PENDEKLARASIAN TAB NAVIGASI UTAMA
-tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
-
-# --- TAB 1: KALKULATOR GEOTEKNIK ---
-with tab_kalkulator:
-    st.title("🧪 OedoCalc Pro: Analisis Konsolidasi Tanah")
-    
-    col_dl, col_space = st.columns([1, 2])
-    with col_dl:
-        st.download_button(
-            label="📥 Unduh Template Format Excel Kosong (.xlsx)",
-            data=buat_template_excel_kosong(),
-            file_name="Template_Kosong_OedoCalc_Pro.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        uploaded_file = st.file_uploader("Unggah File Data Mentah (.xlsx / .csv)", type=["csv", "xlsx"])
-        wilayah_terpilih = st.selectbox(
-            "📍 Pilih Wilayah Acuan Harga Sewa Alat & Bahan",
-            options=list(DATA_REGIONAL.keys())
-        )
-        D_sample = st.number_input("Diameter Cincin (mm)", value=63.5)
-        H0 = st.number_input("Tinggi Sampel H0 (mm)", value=20.0)
-        e0 = st.number_input("Angka Pori Awal (e0)", value=1.15)
-        Gs = st.number_input("Berat Jenis Tanah (Gs)", value=2.65)
-        tebal_lempung = st.number_input("Tebal Lempung (m)", value=10.0)
-        cv = st.number_input("Cv (m²/thn)", value=1.5)
-        drainase = st.radio("Kondisi Drainase", ["1 Arah", "2 Arah (Atas & Bawah)"])
-        luas_bangunan = st.number_input("Luas Area Proyek (m²)", value=500.0)
-        btn = st.button("🚀 Olah Data & Buat Grafik", type="primary")
-
-    with col2:
-        if uploaded_file and btn:
-            df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-            laporan, pembahasan, kesimpulan, df_rab, total_rab, rek_nama, alat_butuh, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_t, t90_b = proses_oedometer(
-                df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih
-            )
-            
-            subtab1, subtab2, subtab3, subtab4, subtab5, subtab6 = st.tabs([
-                "📋 Tabel 10.5 Analisis", 
-                "📝 Pembahasan & Kesimpulan", 
-                "📄 Laporan Teknis", 
-                "💰 Estimasi RAB Regional", 
-                "📈 Kurva e - log p", 
-                "📉 Grafik Penurunan"
-            ])
-            
-            with subtab1:
-                st.subheader("Tabel 10.5 Analisis Data Konsolidasi")
-                st.dataframe(df_tabel_10_5, use_container_width=True)
-            with subtab2:
-                st.markdown(f"### 3.1 Pembahasan Geoteknik\n{pembahasan}")
-                st.divider()
-                st.markdown(f"### 3.2 Kesimpulan\n{kesimpulan}")
-            with subtab3:
-                st.code(laporan)
-            with subtab4:
-                st.subheader(f"🏗️ Rekomendasi Teknis: {rek_nama}")
-                st.info(f"**Tipe Alat Berat Dibutuhkan:** {alat_butuh}")
-                st.subheader(f"📊 Rincian RAB Regional ({wilayah_terpilih})")
-                st.dataframe(df_rab.style.format({'Harga Satuan Regional (Rp)': 'Rp {:,.0f}', 'Total Biaya (Rp)': 'Rp {:,.0f}'}), use_container_width=True)
-                st.success(f"### ESTIMASI TOTAL BIAYA PROYEK: Rp {total_rab:,.0f}")
-            with subtab5:
-                st.pyplot(fig_elogp)
-            with subtab6:
-                st.pyplot(fig_time)
-                
-            col_btn1, col_btn2 = st.columns(2)
-            
-            with col_btn1:
-                excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, df_rab)
-                st.download_button(
-                    label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
-                    data=excel_gabungan_bytes,
-                    file_name="Laporan_Lengkap_OedoCalc_Pro.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            
-            with col_btn2:
-                rab_html_table = f"<h3>Rekomendasi Metode: {rek_nama}</h3><p><strong>Alat Berat Dibutuhkan:</strong> {alat_butuh}</p>" + df_rab.to_html(index=False) + f"<h4>TOTAL RAB ESTIMASI REGIONAL ({wilayah_terpilih}): Rp {total_rab:,.0f}</h4>"
-                html_bytes = buat_laporan_html_lengkap(
-                    df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab_html_table, 
-                    "BH-01 Proyek Gedung", st.session_state.curr_lat, st.session_state.curr_lon, 
-                    4.5, tebal_lempung, cv, Cc, t90_t, t90_b, wilayah_terpilih
-                )
-                st.download_button(
-                    label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
-                    data=html_bytes,
-                    file_name="Laporan_Rekap_OedoCalc_Pro.html",
-                    mime="text/html"
-                )
-
-# --- TAB 2: PETA LOKASI SAMPEL TANAH INTERAKTIF ---
-with tab_peta:
-    st.header("🗺️ Peta Pemetaan Lokasi Pengambilan Sampel Tanah (Borehole)")
-    st.write("Lokasi dapat dipindahkan dengan **mengklik titik baru di atas peta** atau **mengubah angka koordinat** di sebelah kiri.")
-
-    col_map_in, col_map_view = st.columns([1, 2])
-
-    with col_map_in:
-        st.subheader("📍 Input / Ubah Lokasi Sampel")
-        nama_proyek = st.text_input("Nama Proyek / Titik BH", value="BH-01 Proyek Gedung A", key="peta_nama")
-        
-        lat_input = st.number_input(
-            "Latitude (Lintang)", 
-            value=float(st.session_state.curr_lat), 
-            format="%.6f", 
-            key="peta_lat_input"
-        )
-        lon_input = st.number_input(
-            "Longitude (Bujur)", 
-            value=float(st.session_state.curr_lon), 
-            format="%.6f", 
-            key="peta_lon_input"
-        )
-        
-        st.session_state.curr_lat = lat_input
-        st.session_state.curr_lon = lon_input
-
-        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5, key="peta_depth")
-        
-        gmaps_url = f"https://www.google.com/maps?q={st.session_state.curr_lat},{st.session_state.curr_lon}"
-        st.markdown(f"🔗 **[Buka Titik Ini di Google Maps Direct]({gmaps_url})**")
-
-    with col_map_view:
-        st.subheader("🌍 Klik pada Peta untuk Menggeser Posisi")
-        
-        m = folium.Map(
-            location=[st.session_state.curr_lat, st.session_state.curr_lon], 
-            zoom_start=13,
-            tiles="OpenStreetMap"
-        )
-        
-        folium.Marker(
-            [st.session_state.curr_lat, st.session_state.curr_lon],
-            popup=f"<b>{nama_proyek}</b><br>Kedalaman: {kedalaman} m",
-            tooltip=nama_proyek,
-            icon=folium.Icon(color="red", icon="info-sign")
-        ).add_to(m)
-
-        map_data = st_folium(m, height=400, width=700, key="folium_interactive_map")
-
-        if map_data and map_data.get("last_clicked"):
-            click_lat = map_data["last_clicked"]["lat"]
-            click_lng = map_data["last_clicked"]["lng"]
-            
-            if abs(click_lat - st.session_state.curr_lat) > 0.000001 or abs(click_lng - st.session_state.curr_lon) > 0.000001:
-                st.session_state.curr_lat = click_lat
-                st.session_state.curr_lon = click_lng
-                st.rerun()
-
-    st.divider()
-    st.subheader("📋 Ringkasan Geolocation Terkini")
-    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.curr_lat:.6f}`, Lon `{st.session_state.curr_lon:.6f}`")
+            ("Pengadaan & Pemadatan Timbunan Preloading (Tanah P
