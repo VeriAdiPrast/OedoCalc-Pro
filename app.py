@@ -355,3 +355,74 @@ with tab_peta:
     st.divider()
     st.subheader("📋 Ringkasan Geolocation Terkini")
     st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.latitude:.6f}`, Lon `{st.session_state.longitude:.6f}`")
+import base64
+
+# Fungsi untuk mengonversi grafik Matplotlib menjadi string Base64 gambar
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+# Fungsi pembuat HTML Laporan Lengkap Siap Cetak PDF
+def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_text, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan):
+    img_elogp = fig_to_base64(fig_elogp)
+    img_time = fig_to_base64(fig_time)
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Georgia', serif; color: #0f172a; padding: 20px; }}
+            h1 {{ color: #1e3a8a; text-align: center; font-size: 18pt; }}
+            h2 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; font-size: 12pt; margin-top: 15px; }}
+            table {{ width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 6px; text-align: center; }}
+            th {{ background-color: #f1f5f9; }}
+            .img-container {{ display: flex; gap: 10px; margin-top: 10px; }}
+            .img-box {{ flex: 1; text-align: center; }}
+            .img-box img {{ width: 100%; height: auto; border: 1px solid #cbd5e1; }}
+        </style>
+    </head>
+    <body>
+        <h1>LAPORAN HASIL UJI KONSOLIDASI OEDOMETER</h1>
+        <p style="text-align: center; font-size: 10pt;"><strong>OedoCalc Pro Engine</strong> — ASTM D2435 / SNI 2812:2011</p>
+        
+        <h2>1. Informasi Proyek & Geolocation</h2>
+        <table>
+            <tr><th style="text-align:left;">Nama Proyek / Titik BH</th><td>{nama_proyek}</td><th style="text-align:left;">Kedalaman Sampel</th><td>{kedalaman} m</td></tr>
+            <tr><th style="text-align:left;">Koordinat</th><td>Lat: {lat:.6f}, Lon: {lon:.6f}</td><th style="text-align:left;">Tebal Lempung</th><td>{tebal_lempung} m</td></tr>
+        </table>
+
+        <h2>2. Kurva Konsolidasi & Grafik Penurunan</h2>
+        <div class="img-container">
+            <div class="img-box">
+                <p><strong>Kurva e - log p</strong></p>
+                <img src="data:image/png;base64,{img_elogp}" />
+            </div>
+            <div class="img-box">
+                <p><strong>Grafik Penurunan vs √t</strong></p>
+                <img src="data:image/png;base64,{img_time}" />
+            </div>
+        </div>
+
+        <h2>3. Pembahasan & Kesimpulan Geoteknik</h2>
+        <p><strong>{pembahasan_text}</strong></p>
+        <p><strong>{kesimpulan_text}</strong></p>
+
+        <h2>4. Estimasi Biaya & Rekomendasi Proyek</h2>
+        <p style="background: #f8fafc; padding: 10px; border-left: 4px solid #1e3a8a;"><strong>{rab_text}</strong></p>
+    </body>
+    </html>
+    """
+    return html_content.encode('utf-8')
+    html_bytes = buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_t, t90_b)
+
+st.download_button(
+    label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
+    data=html_bytes,
+    file_name="Laporan_Rekap_OedoCalc_Pro.html",
+    mime="text/html"
+)
