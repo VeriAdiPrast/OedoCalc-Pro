@@ -184,7 +184,7 @@ def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembaha
         
     return output.getvalue()
 
-# 8. Logika Analisis Oedometer (Return 14 Nilai)
+# 8. Logika Analisis Oedometer
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -406,7 +406,6 @@ with tab_kalkulator:
         if uploaded_file and btn:
             df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
             
-            # Penangkapan 14 Nilai Secara Presisi
             (
                 laporan, pembahasan, kesimpulan, df_rab, 
                 total_rab, rek_nama, alat_butuh, 
@@ -490,4 +489,45 @@ with tab_peta:
         lon_input = st.number_input(
             "Longitude (Bujur)", 
             value=float(st.session_state.curr_lon), 
-            format="%.6f
+            format="%.6f", 
+            key="peta_lon_input"
+        )
+        
+        st.session_state.curr_lat = lat_input
+        st.session_state.curr_lon = lon_input
+
+        kedalaman = st.number_input("Kedalaman Sampel (meter)", value=4.5, key="peta_depth")
+        
+        gmaps_url = f"https://www.google.com/maps?q={st.session_state.curr_lat},{st.session_state.curr_lon}"
+        st.markdown(f"🔗 **[Buka Titik Ini di Google Maps Direct]({gmaps_url})**")
+
+    with col_map_view:
+        st.subheader("🌍 Klik pada Peta untuk Menggeser Posisi")
+        
+        m = folium.Map(
+            location=[st.session_state.curr_lat, st.session_state.curr_lon], 
+            zoom_start=13,
+            tiles="OpenStreetMap"
+        )
+        
+        folium.Marker(
+            [st.session_state.curr_lat, st.session_state.curr_lon],
+            popup=f"<b>{nama_proyek}</b><br>Kedalaman: {kedalaman} m",
+            tooltip=nama_proyek,
+            icon=folium.Icon(color="red", icon="info-sign")
+        ).add_to(m)
+
+        map_data = st_folium(m, height=400, width=700, key="folium_interactive_map")
+
+        if map_data and map_data.get("last_clicked"):
+            click_lat = map_data["last_clicked"]["lat"]
+            click_lng = map_data["last_clicked"]["lng"]
+            
+            if abs(click_lat - st.session_state.curr_lat) > 0.000001 or abs(click_lng - st.session_state.curr_lon) > 0.000001:
+                st.session_state.curr_lat = click_lat
+                st.session_state.curr_lon = click_lng
+                st.rerun()
+
+    st.divider()
+    st.subheader("📋 Ringkasan Geolocation Terkini")
+    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.curr_lat:.6f}`, Lon `{st.session_state.curr_lon:.6f}`")
