@@ -15,7 +15,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Database Regional Harga Sewa Alat & Material Geoteknik Indonesia
+# 2. INISIALISASI SESSION STATE KOORDINAT (Wajib di Paling Atas!)
+if 'curr_lat' not in st.session_state:
+    st.session_state.curr_lat = -6.208800
+if 'curr_lon' not in st.session_state:
+    st.session_state.curr_lon = 106.845600
+
+# 3. Database Regional Harga Sewa Alat & Material Geoteknik Indonesia
 DATA_REGIONAL = {
     "Jawa (Jabodetabek / Jawa Barat)": {
         "pvd_m": 45000, "preloading_m3": 120000, "rig_mobilization": 35000000, 
@@ -49,7 +55,7 @@ DATA_REGIONAL = {
     }
 }
 
-# 3. Fungsi Pembuat Template Excel Kosong
+# 4. Fungsi Pembuat Template Excel Kosong
 def buat_template_excel_kosong():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -70,14 +76,14 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 4. Konversi Matplotlib Figure ke Base64
+# 5. Konversi Matplotlib Figure ke Base64
 def fig_to_base64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("utf-8")
 
-# 5. Pembuat Laporan HTML/PDF Formal Siap Cetak
+# 6. Pembuat Laporan HTML/PDF Formal Siap Cetak
 def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_html, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan, wilayah):
     img_elogp = fig_to_base64(fig_elogp)
     img_time = fig_to_base64(fig_time)
@@ -156,7 +162,7 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
     """
     return html_content.encode('utf-8')
 
-# 6. Pembuat Single File Excel Gabungan Output
+# 7. Pembuat Single File Excel Gabungan Output
 def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembahasan_text, kesimpulan_text, Cc, t90_tahun, t90_bulan, df_rab):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -178,7 +184,7 @@ def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembaha
         
     return output.getvalue()
 
-# 7. Logika Analisis Oedometer & Pembuat RAB Detil per Wilayah
+# 8. Logika Analisis Oedometer & Pembuat RAB Detil per Wilayah
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -267,7 +273,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     ax2.invert_yaxis()
     plt.tight_layout()
 
-    # --- PERHITUNGAN RAB DETIL DAN REKOMENDASI PERBAIKAN ---
+    # PERHITUNGAN RAB DETIL DAN REKOMENDASI PERBAIKAN
     reg_price = DATA_REGIONAL.get(wilayah_terpilih, DATA_REGIONAL["Jawa (Jabodetabek / Jawa Barat)"])
     
     if Cc < 0.2:
@@ -300,10 +306,9 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         rekomendasi_nama = "Perbaikan Tanah Masif (PVD + Preloading Timbunan Tanah)"
         alat_butuh = "PVD Rig Inserter (Mandrel Rig), Excavator 20 Ton, Vibro Roller 12 Ton, Dumptruck 20 m³, Instrument Settlement Plate & Inclinometer"
         
-        # Grid PVD 1.2m x 1.2m
         titik_pvd = math.ceil(luas_bangunan / 1.44)
         panjang_pvd_total = titik_pvd * (tebal_lempung + 1.0)
-        volume_preloading = luas_bangunan * 3.0 # Timbunan tinggi 3m
+        volume_preloading = luas_bangunan * 3.0
         
         pekerjaan_items = [
             ("Pengadaan & Penetrasi PVD (Prefabricated Vertical Drain)", panjang_pvd_total, "meter", reg_price["pvd_m"]),
@@ -312,7 +317,6 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
             ("Pemasangan Instrumentasi Geoteknik (Settlement Plate)", 1, "ls", reg_price["instrumentation"])
         ]
 
-    # Buat Dataframe RAB
     list_uraian, list_vol, list_sat, list_harga, list_total = [], [], [], [], []
     total_rab_keseluruhan = 0
 
@@ -359,7 +363,7 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
 
     return laporan_teknis, pembahasan_text, kesimpulan_text, df_rab, total_rab_keseluruhan, rekomendasi_nama, alat_butuh, fig_elogp, fig_time, df_export, df_tabel_10_5, Cc, t90_tahun, t90_bulan
 
-# 8. PENDEKLARASIAN TAB NAVIGASI UTAMA
+# 9. PENDEKLARASIAN TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
 
 # --- TAB 1: KALKULATOR GEOTEKNIK ---
