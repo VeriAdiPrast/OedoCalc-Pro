@@ -43,11 +43,17 @@ def fig_to_base64(fig):
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("utf-8")
 
-# 4. Fungsi Pembuat Dokumen Rekap Laporan HTML/PDF Siap Cetak
+# 4. Fungsi Pembuat Dokumen Rekap Laporan HTML/PDF Siap Cetak (Format Formal)
 def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_text, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan):
     img_elogp = fig_to_base64(fig_elogp)
     img_time = fig_to_base64(fig_time)
     
+    # Membersihkan teks dari penomoran bab lama (10.7, 10.8, 10.9) jika ada
+    clean_pembahasan = pembahasan_text.replace("10.7 Pembahasan", "").strip()
+    clean_kesimpulan = kesimpulan_text.replace("10.8 Kesimpulan", "").replace("10.9 Daftar Pustaka", "").strip()
+    
+    cv_cm2_min = cv * (10000.0 / 525600.0)
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -55,51 +61,177 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
         <meta charset="UTF-8">
         <title>Laporan Hasil Uji Konsolidasi Oedometer</title>
         <style>
-            body {{ font-family: 'Arial', sans-serif; color: #0f172a; padding: 25px; line-height: 1.5; }}
-            h1 {{ color: #1e3a8a; text-align: center; font-size: 18pt; margin-bottom: 5px; }}
-            .subtitle {{ text-align: center; font-size: 10pt; color: #475569; margin-bottom: 20px; }}
-            h2 {{ color: #1e3a8a; border-bottom: 2px solid #1e3a8a; font-size: 12pt; margin-top: 20px; padding-bottom: 4px; }}
-            table {{ width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 10px; }}
-            th, td {{ border: 1px solid #cbd5e1; padding: 6px; text-align: center; }}
-            th {{ background-color: #f1f5f9; font-weight: bold; }}
-            .img-container {{ display: flex; gap: 15px; margin-top: 15px; }}
-            .img-box {{ flex: 1; text-align: center; font-size: 9pt; font-weight: bold; }}
-            .img-box img {{ width: 100%; height: auto; border: 1px solid #cbd5e1; margin-top: 5px; }}
-            .box-text {{ background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; font-size: 10pt; white-space: pre-line; }}
+            @page {{
+                size: A4;
+                margin: 20mm;
+            }}
+            body {{
+                font-family: 'Times New Roman', Times, serif;
+                color: #111827;
+                line-height: 1.6;
+                font-size: 11pt;
+                padding: 10px;
+            }}
+            .header-kop {{
+                text-align: center;
+                border-bottom: 3px double #1e3a8a;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }}
+            .header-kop h1 {{
+                font-size: 16pt;
+                margin: 0;
+                color: #1e3a8a;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }}
+            .header-kop p {{
+                font-size: 9pt;
+                margin: 3px 0 0 0;
+                color: #4b5563;
+                font-style: italic;
+            }}
+            h2 {{
+                font-size: 12pt;
+                color: #1e3a8a;
+                border-bottom: 1px solid #94a3b8;
+                padding-bottom: 4px;
+                margin-top: 25px;
+                text-transform: uppercase;
+            }}
+            h3 {{
+                font-size: 11pt;
+                color: #0f172a;
+                margin-top: 15px;
+                margin-bottom: 5px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+                font-size: 10pt;
+            }}
+            th, td {{
+                border: 1px solid #64748b;
+                padding: 6px 10px;
+                text-align: left;
+            }}
+            th {{
+                background-color: #f1f5f9;
+                font-weight: bold;
+                color: #1e293b;
+            }}
+            .table-center td, .table-center th {{
+                text-align: center;
+            }}
+            p {{
+                text-align: justify;
+                text-indent: 30px;
+                margin-top: 5px;
+                margin-bottom: 10px;
+            }}
+            .img-container {{
+                display: flex;
+                gap: 15px;
+                margin-top: 15px;
+                justify-content: center;
+            }}
+            .img-box {{
+                flex: 1;
+                text-align: center;
+                font-size: 9pt;
+                font-weight: bold;
+            }}
+            .img-box img {{
+                width: 100%;
+                max-width: 350px;
+                height: auto;
+                border: 1px solid #cbd5e1;
+                margin-top: 5px;
+                border-radius: 4px;
+            }}
+            .box-rab {{
+                background-color: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-left: 5px solid #1e3a8a;
+                padding: 12px 15px;
+                font-size: 10pt;
+                margin-top: 10px;
+            }}
+            .footer-sign {{
+                margin-top: 40px;
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                font-size: 10pt;
+            }}
         </style>
     </head>
     <body>
-        <h1>LAPORAN HASIL UJI KONSOLIDASI OEDOMETER</h1>
-        <div class="subtitle">OedoCalc Pro Engine — Standard ASTM D2435 / SNI 2812:2011</div>
-        
-        <h2>1. Informasi Proyek & Geolocation</h2>
+        <!-- KOP LAPORAN FORMAL -->
+        <div class="header-kop">
+            <h1>Laporan Analisis Geoteknik & Uji Konsolidasi</h1>
+            <p>Laboratorium Mekanika Tanah — Standard ASTM D2435 / SNI 2812:2011</p>
+        </div>
+
+        <!-- BAB 1 -->
+        <h2>BAB 1. INFORMASI PROYEK & SAMPLING</h2>
         <table>
-            <tr><th style="text-align:left;">Nama Proyek / Titik BH</th><td>{nama_proyek}</td><th style="text-align:left;">Kedalaman Sampel</th><td>{kedalaman} m</td></tr>
-            <tr><th style="text-align:left;">Koordinat Sampel</th><td>Lat: {lat:.6f}, Lon: {lon:.6f}</td><th style="text-align:left;">Tebal Lapisan Lempung</th><td>{tebal_lempung} m</td></tr>
+            <tr>
+                <th width="25%">Nama Proyek / Titik BH</th>
+                <td width="25%">{nama_proyek}</td>
+                <th width="25%">Kedalaman Sampel</th>
+                <td width="25%">{kedalaman} m</td>
+            </tr>
+            <tr>
+                <th>Koordinat Geolocation</th>
+                <td>Lat: {lat:.6f}, Lon: {lon:.6f}</td>
+                <th>Tebal Lapisan Lempung</th>
+                <td>{tebal_lempung} m</td>
+            </tr>
+            <tr>
+                <th>Koefisien Konsolidasi (Cv)</th>
+                <td>{cv:.4f} m²/thn</td>
+                <th>Waktu Penurunan (t90)</th>
+                <td>{t90_tahun:.2f} Tahun ({t90_bulan:.0f} Bulan)</td>
+            </tr>
         </table>
 
-        <h2>2. Kurva Konsolidasi & Grafik Penurunan</h2>
+        <!-- BAB 2 -->
+        <h2>BAB 2. GRAFIK & KURVA KONSOLIDASI</h2>
         <div class="img-container">
             <div class="img-box">
-                <div>Kurva e - log p (Konsolidasi Utama)</div>
+                <div>Gambar 2.1 Kurva Konsolidasi Utama (e - log p)</div>
                 <img src="data:image/png;base64,{img_elogp}" />
             </div>
             <div class="img-box">
-                <div>Grafik Penurunan vs √Waktu</div>
+                <div>Gambar 2.2 Grafik Penurunan vs √Waktu</div>
                 <img src="data:image/png;base64,{img_time}" />
             </div>
         </div>
 
-        <h2>3. Pembahasan & Kesimpulan Geoteknik</h2>
-        <div class="box-text">
-            <strong>{pembahasan_text}</strong>
-            <br><br>
-            <strong>{kesimpulan_text}</strong>
-        </div>
+        <!-- BAB 3 -->
+        <h2>BAB 3. PEMBAHASAN & KESIMPULAN</h2>
+        
+        <h3>3.1 Pembahasan Geoteknik</h3>
+        <p>Berdasarkan data yang diperoleh, pengujian konsolidasi menunjukkan adanya penurunan tebal sampel tanah seiring dengan penambahan beban vertikal secara bertahap. Hal ini membuktikan bahwa tanah yang diuji bersifat kompresibel, di mana proses pemampatan terjadi akibat keluarnya air pori dari rongga tanah, sesuai dengan prinsip konsolidasi Terzaghi.</p>
+        <p>Berdasarkan hasil perhitungan, didapatkan nilai koefisien konsolidasi (Cv) sebesar <strong>{cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit)</strong> dengan Indeks Kompresi (Cc) sebesar <strong>{Cc:.4f}</strong>. Nilai Cv ini merupakan parameter krusial dalam menentukan kecepatan laju penurunan tanah di lapangan; semakin kecil nilai Cv, maka semakin lambat proses konsolidasi yang terjadi. Selain itu, hubungan antara angka pori (e) dan logaritma tekanan (log P) menunjukkan tren penurunan yang konsisten, yang mengonfirmasi bahwa penambahan beban menyebabkan pengurangan volume rongga pori tanah. Hasil ini sangat penting untuk memprediksi besarnya <em>settlement</em> atau penurunan yang mungkin terjadi pada struktur bangunan yang akan didirikan di atas lapisan tanah tersebut di masa depan.</p>
 
-        <h2>4. Estimasi Biaya RAB & Rekomendasi</h2>
-        <div class="box-text">
-            <strong>{rab_text}</strong>
+        <h3>3.2 Kesimpulan</h3>
+        <p>Berdasarkan hasil analisis uji konsolidasi yang dilakukan di laboratorium mekanika tanah, didapatkan nilai koefisien konsolidasi (Cv) sebesar <strong>{cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit)</strong> dan waktu penurunan (t90) sebesar <strong>{t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan)</strong>. Nilai ini merupakan parameter fundamental yang mendeskripsikan laju pemampatan tanah dan keluarnya air pori saat menerima beban.</p>
+        <p>Semakin kecil nilai Cv, semakin lama waktu yang dibutuhkan oleh lapisan tanah tersebut untuk mencapai penurunan maksimumnya. Informasi ini sangat esensial dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman dari risiko penurunan diferensial di masa mendatang.</p>
+
+        <h3>3.3 Daftar Pustaka</h3>
+        <ol style="font-size: 10pt; margin-top: 5px; padding-left: 20px;">
+            <li>Das, Braja M. 2002. <em>Mekanika Tanah (Prinsip-prinsip Rekayasa Geoteknis)</em>. Jilid 1. Jakarta: Erlangga.</li>
+            <li>Badan Standardisasi Nasional. 2011. <em>Cara Uji Konsolidasi Tanah Satu Dimensi (SNI 2812:2011)</em>. Jakarta.</li>
+        </ol>
+
+        <!-- BAB 4 -->
+        <h2>BAB 4. REKOMENDASI TEKNIS & ESTIMASI RAB</h2>
+        <div class="box-rab">
+            <strong>Ringkasan Rekomendasi & Biaya Proyek:</strong><br>
+            {rab_text.replace('\n', '<br>')}
         </div>
     </body>
     </html>
