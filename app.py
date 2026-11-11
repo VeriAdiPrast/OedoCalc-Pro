@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. INISIALISASI SESSION STATE KOORDINAT (Wajib di Paling Atas!)
+# 2. Inisialisasi Session State Koordinat (Di Paling Atas!)
 if 'curr_lat' not in st.session_state:
     st.session_state.curr_lat = -6.208800
 if 'curr_lon' not in st.session_state:
@@ -61,7 +61,6 @@ def buat_template_excel_kosong():
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         waktu_menit = [0, 0, 0, 1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 1440]
         waktu_detik = [6, 15, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        
         data = {
             'Waktu (Menit)': waktu_menit,
             'Waktu (Detik)': waktu_detik,
@@ -76,14 +75,14 @@ def buat_template_excel_kosong():
         df_template.to_excel(writer, index=False, sheet_name='Data_Oedometer')
     return output.getvalue()
 
-# 5. Konversi Matplotlib Figure ke Base64
+# 5. Konversi Grafik ke Base64 (Untuk Laporan PDF)
 def fig_to_base64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("utf-8")
 
-# 6. Pembuat Laporan HTML/PDF Formal Siap Cetak
+# 6. Pembuat Laporan HTML/PDF Formal
 def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_text, kesimpulan_text, rab_html, nama_proyek, lat, lon, kedalaman, tebal_lempung, cv, Cc, t90_tahun, t90_bulan, wilayah):
     img_elogp = fig_to_base64(fig_elogp)
     img_time = fig_to_base64(fig_time)
@@ -162,7 +161,7 @@ def buat_laporan_html_lengkap(df_tabel_10_5, fig_elogp, fig_time, pembahasan_tex
     """
     return html_content.encode('utf-8')
 
-# 7. Pembuat Single File Excel Gabungan Output
+# 7. Pembuat File Excel Multi-Sheet
 def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembahasan_text, kesimpulan_text, Cc, t90_tahun, t90_bulan, df_rab):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -184,7 +183,7 @@ def buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan_teknis, pembaha
         
     return output.getvalue()
 
-# 8. Logika Analisis Oedometer
+# 8. Logika Analisis Oedometer Menggunakan Dictionary (Anti Unpack Error)
 def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih):
     waktu_menit = df.iloc[:, 0].astype(float) + (df.iloc[:, 1].astype(float) / 60.0)
     kolom_beban = df.columns[2:]
@@ -206,7 +205,6 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         penurunan_akhir_list.append(abs(pembacaan[-1] - dial_awal) / 100.0)
 
     akar_waktu = np.sqrt(waktu_menit)
-
     total_grafik = len(kolom_beban)
     cols_grid = 2
     rows_grid = math.ceil(total_grafik / cols_grid)
@@ -273,14 +271,13 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
     ax2.invert_yaxis()
     plt.tight_layout()
 
-    # RAB Detil
+    # Perhitungan RAB Detil
     reg_price = DATA_REGIONAL.get(wilayah_terpilih, DATA_REGIONAL["Jawa (Jabodetabek / Jawa Barat)"])
     
     if Cc < 0.2:
         kemampatan = "RENDAH (Low Compressibility) - Tanah Padat"
         rekomendasi_nama = "Pondasi Dangkal (Footplat / Batu Kali) & Pemadatan Standard"
         alat_butuh = "Bulldozer 100 HP, Vibro Roller 10 Ton, Excavator Backhoe 0.8 m³"
-        
         pekerjaan_items = [
             ("Galian & Pembersihan Lahan", luas_bangunan * 0.5, "m³", reg_price["shallow_m2"] * 0.2),
             ("Urugan Pasir & Lapisan Subbase", luas_bangunan * 0.3, "m³", reg_price["shallow_m2"] * 0.4),
@@ -291,10 +288,8 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         kemampatan = "SEDANG (Medium Compressibility) - Lempung Sedang"
         rekomendasi_nama = "Pondasi Minipile (Tiang Pancang Presisi / HSPD)"
         alat_butuh = "Hydraulic Static Pile Driver (HSPD) / Mobile Rig Pancang, Mobile Crane 25 Ton, Dumptruck 12 m³"
-        
         jumlah_tiang = math.ceil((luas_bangunan / 12.0))
         panjang_tiang_total = jumlah_tiang * tebal_lempung
-        
         pekerjaan_items = [
             ("Pengadaan Tiang Pancang Minipile 28x28", panjang_tiang_total, "meter", reg_price["minipile_m"] * 0.6),
             ("Jasa Pemancangan dengan Rig HSPD", panjang_tiang_total, "meter", reg_price["minipile_m"] * 0.4),
@@ -305,11 +300,9 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         kemampatan = "TINGGI (High Compressibility) - Tanah Sangat Lunak"
         rekomendasi_nama = "Perbaikan Tanah Masif (PVD + Preloading Timbunan Tanah)"
         alat_butuh = "PVD Rig Inserter (Mandrel Rig), Excavator 20 Ton, Vibro Roller 12 Ton, Dumptruck 20 m³, Instrument Settlement Plate & Inclinometer"
-        
         titik_pvd = math.ceil(luas_bangunan / 1.44)
         panjang_pvd_total = titik_pvd * (tebal_lempung + 1.0)
         volume_preloading = luas_bangunan * 3.0
-        
         pekerjaan_items = [
             ("Pengadaan & Penetrasi PVD (Prefabricated Vertical Drain)", panjang_pvd_total, "meter", reg_price["pvd_m"]),
             ("Pengadaan & Pemadatan Timbunan Preloading (Tanah Pilihan)", volume_preloading, "m³", reg_price["preloading_m3"]),
@@ -361,12 +354,30 @@ def proses_oedometer(df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_ban
         f"Berdasarkan hasil analisis uji konsolidasi laboratorium mekanika tanah, didapatkan nilai koefisien konsolidasi (Cv) sebesar {cv:.4f} m²/tahun ({cv_cm2_min:.4f} cm²/menit) dan waktu penurunan (t90) sebesar {t90_tahun:.2f} tahun ({t90_bulan:.0f} bulan). Informasi ini sangat esensial dalam tahap rekayasa geoteknik untuk merancang fondasi yang aman."
     )
 
-    return (
-        laporan_teknis, pembahasan_text, kesimpulan_text, df_rab, 
-        total_rab_keseluruhan, rekomendasi_nama, alat_butuh, 
-        fig_elogp, fig_time, df_export, df_tabel_10_5, 
-        Cc, t90_tahun, t90_bulan
-    )
+    df_export = pd.DataFrame({
+        'Beban (kg/cm2)': beban_list,
+        'Beban (kPa)': p_kpa,
+        'Penurunan Total (mm)': penurunan_akhir_list,
+        'Angka Pori (e)': e_list
+    })
+
+    # Return dikemas rapi dalam objek Dictionary agar bebas dari TypeError / NameError
+    return {
+        "laporan": laporan_teknis,
+        "pembahasan": pembahasan_text,
+        "kesimpulan": kesimpulan_text,
+        "df_rab": df_rab,
+        "total_rab": total_rab_keseluruhan,
+        "rek_nama": rekomendasi_nama,
+        "alat_butuh": alat_butuh,
+        "fig_elogp": fig_elogp,
+        "fig_time": fig_time,
+        "df_export": df_export,
+        "df_tabel_10_5": df_tabel_10_5,
+        "Cc": Cc,
+        "t90_t": t90_tahun,
+        "t90_b": t90_bulan
+    }
 
 # 9. PENDEKLARASIAN TAB NAVIGASI UTAMA
 tab_kalkulator, tab_peta = st.tabs(["🚀 Aplikasi Kalkulator", "🗺️ Peta Lokasi Sampel Tanah"])
@@ -406,12 +417,8 @@ with tab_kalkulator:
         if uploaded_file and btn:
             df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
             
-            (
-                laporan, pembahasan, kesimpulan, df_rab, 
-                total_rab, rek_nama, alat_butuh, 
-                fig_elogp, fig_time, df_export, df_tabel_10_5, 
-                Cc, t90_t, t90_b
-            ) = proses_oedometer(
+            # Pemanggilan fungsi aman tanpa potensi unpacking mismatch
+            res = proses_oedometer(
                 df, D_sample, H0, e0, tebal_lempung, cv, drainase, luas_bangunan, Gs, wilayah_terpilih
             )
             
@@ -426,28 +433,32 @@ with tab_kalkulator:
             
             with subtab1:
                 st.subheader("Tabel 10.5 Analisis Data Konsolidasi")
-                st.dataframe(df_tabel_10_5, use_container_width=True)
+                st.dataframe(res["df_tabel_10_5"], use_container_width=True)
             with subtab2:
-                st.markdown(f"### 3.1 Pembahasan Geoteknik\n{pembahasan}")
+                st.markdown(f"### 3.1 Pembahasan Geoteknik\n{res['pembahasan']}")
                 st.divider()
-                st.markdown(f"### 3.2 Kesimpulan\n{kesimpulan}")
+                st.markdown(f"### 3.2 Kesimpulan\n{res['kesimpulan']}")
             with subtab3:
-                st.code(laporan)
+                st.code(res["laporan"])
             with subtab4:
-                st.subheader(f"🏗️ Rekomendasi Teknis: {rek_nama}")
-                st.info(f"**Tipe Alat Berat Dibutuhkan:** {alat_butuh}")
+                st.subheader(f"🏗️ Rekomendasi Teknis: {res['rek_nama']}")
+                st.info(f"**Tipe Alat Berat Dibutuhkan:** {res['alat_butuh']}")
                 st.subheader(f"📊 Rincian RAB Regional ({wilayah_terpilih})")
-                st.dataframe(df_rab.style.format({'Harga Satuan Regional (Rp)': 'Rp {:,.0f}', 'Total Biaya (Rp)': 'Rp {:,.0f}'}), use_container_width=True)
-                st.success(f"### ESTIMASI TOTAL BIAYA PROYEK: Rp {total_rab:,.0f}")
+                st.dataframe(res["df_rab"].style.format({'Harga Satuan Regional (Rp)': 'Rp {:,.0f}', 'Total Biaya (Rp)': 'Rp {:,.0f}'}), use_container_width=True)
+                st.success(f"### ESTIMASI TOTAL BIAYA PROYEK: Rp {res['total_rab']:,.0f}")
             with subtab5:
-                st.pyplot(fig_elogp)
+                st.pyplot(res["fig_elogp"])
             with subtab6:
-                st.pyplot(fig_time)
+                st.pyplot(res["fig_time"])
                 
             col_btn1, col_btn2 = st.columns(2)
             
             with col_btn1:
-                excel_gabungan_bytes = buat_excel_output_gabungan(df_tabel_10_5, df_export, laporan, pembahasan, kesimpulan, Cc, t90_t, t90_b, df_rab)
+                excel_gabungan_bytes = buat_excel_output_gabungan(
+                    res["df_tabel_10_5"], res["df_export"], res["laporan"], 
+                    res["pembahasan"], res["kesimpulan"], res["Cc"], 
+                    res["t90_t"], res["t90_b"], res["df_rab"]
+                )
                 st.download_button(
                     label="📦 Unduh Seluruh Output Lengkap (.xlsx)",
                     data=excel_gabungan_bytes,
@@ -456,11 +467,12 @@ with tab_kalkulator:
                 )
             
             with col_btn2:
-                rab_html_table = f"<h3>Rekomendasi Metode: {rek_nama}</h3><p><strong>Alat Berat Dibutuhkan:</strong> {alat_butuh}</p>" + df_rab.to_html(index=False) + f"<h4>TOTAL RAB ESTIMASI REGIONAL ({wilayah_terpilih}): Rp {total_rab:,.0f}</h4>"
+                rab_html_table = f"<h3>Rekomendasi Metode: {res['rek_nama']}</h3><p><strong>Alat Berat Dibutuhkan:</strong> {res['alat_butuh']}</p>" + res["df_rab"].to_html(index=False) + f"<h4>TOTAL RAB ESTIMASI REGIONAL ({wilayah_terpilih}): Rp {res['total_rab']:,.0f}</h4>"
                 html_bytes = buat_laporan_html_lengkap(
-                    df_tabel_10_5, fig_elogp, fig_time, pembahasan, kesimpulan, rab_html_table, 
+                    res["df_tabel_10_5"], res["fig_elogp"], res["fig_time"], 
+                    res["pembahasan"], res["kesimpulan"], rab_html_table, 
                     "BH-01 Proyek Gedung", st.session_state.curr_lat, st.session_state.curr_lon, 
-                    4.5, tebal_lempung, cv, Cc, t90_t, t90_b, wilayah_terpilih
+                    4.5, tebal_lempung, cv, res["Cc"], res["t90_t"], res["t90_b"], wilayah_terpilih
                 )
                 st.download_button(
                     label="📄 Unduh Rekap Laporan PDF / HTML (.html)",
@@ -521,13 +533,3 @@ with tab_peta:
 
         if map_data and map_data.get("last_clicked"):
             click_lat = map_data["last_clicked"]["lat"]
-            click_lng = map_data["last_clicked"]["lng"]
-            
-            if abs(click_lat - st.session_state.curr_lat) > 0.000001 or abs(click_lng - st.session_state.curr_lon) > 0.000001:
-                st.session_state.curr_lat = click_lat
-                st.session_state.curr_lon = click_lng
-                st.rerun()
-
-    st.divider()
-    st.subheader("📋 Ringkasan Geolocation Terkini")
-    st.info(f"**Titik Sampel:** {nama_proyek} | **Kedalaman:** {kedalaman} m | **Koordinat Aktif:** Lat `{st.session_state.curr_lat:.6f}`, Lon `{st.session_state.curr_lon:.6f}`")
